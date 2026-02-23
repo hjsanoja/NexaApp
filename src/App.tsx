@@ -8,7 +8,7 @@ import { Camera, Search, Plus, Trash2, Download, LogOut, Users, Store, Package, 
 
 // --- VERSIÓN DE LA APP ---
 // Cambia este número cada vez que hagamos una nueva mejora para rastrearla en tu teléfono
-const APP_VERSION = "v1.1.0";
+const APP_VERSION = "v1.1.1";
 
 // --- INICIALIZACIÓN DE FIREBASE ---
 // ↓↓↓ REEMPLAZA ESTO CON LOS DATOS DE TU FIREBASE REAL ↓↓↓

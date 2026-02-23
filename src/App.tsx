@@ -1,9 +1,14 @@
+
 // @ts-nocheck
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, addDoc, updateDoc } from 'firebase/firestore';
 import { Camera, Search, Plus, Trash2, Download, LogOut, Users, Store, Package, LayoutDashboard, FileUp, X, Check, AlertCircle, ScanLine, Boxes } from 'lucide-react';
+
+// --- VERSIÓN DE LA APP ---
+// Cambia este número cada vez que hagamos una nueva mejora para rastrearla en tu teléfono
+const APP_VERSION = "v1.1.0";
 
 // --- INICIALIZACIÓN DE FIREBASE ---
 // ↓↓↓ REEMPLAZA ESTO CON LOS DATOS DE TU FIREBASE REAL ↓↓↓
@@ -32,7 +37,7 @@ if (!isConfigMissing) {
   db = getFirestore(app);
 }
 
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'nexastock-prod';
+const appId = typeof __app_id !== 'undefined' && __app_id ? __app_id : 'default-app-id';
 
 // --- COMPONENTE ENVOLTORIO (Protege contra pantalla blanca) ---
 export default function App() {
@@ -46,7 +51,7 @@ export default function App() {
             La pantalla está en blanco porque la aplicación no puede encontrar tus credenciales de base de datos.
           </p>
           <p className="text-sm text-gray-700 bg-red-50 p-4 rounded-lg text-left border border-red-100">
-            Ve a la <b>línea 11</b> del código en tu editor y reemplaza los textos como <code>"TU_API_KEY"</code> con los datos de tu proyecto real de Firebase.
+            Ve a la <b>línea 15</b> del código en tu editor y reemplaza los textos como <code>"TU_API_KEY"</code> con los datos de tu proyecto real de Firebase.
           </p>
         </div>
       </div>
@@ -61,6 +66,7 @@ function MainApp() {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null); // { id, name, role: 'admin' | 'rep' }
   const [loading, setLoading] = useState(true);
+  const [systemError, setSystemError] = useState(''); // <--- NUEVO: Capturador de errores visuales
 
   // Estados de datos
   const [usersList, setUsersList] = useState([]);
@@ -83,12 +89,18 @@ function MainApp() {
         }
       } catch (err) {
         console.error("Error auth:", err);
+        // Mostrar el error en pantalla si Firebase bloquea el inicio de sesión
+        setSystemError(`Error de Autenticación: ${err.message}. Verifica que hayas habilitado el inicio de sesión "Anónimo" en Firebase y que el dominio actual esté en "Dominios Autorizados".`);
+        setLoading(false);
       }
     };
     initAuth();
 
     const unsubscribeAuth = onAuthStateChanged(auth, (u) => {
-      setUser(u);
+      if (u) {
+        setUser(u);
+        setSystemError(''); // Limpiar errores si se loguea exitosamente
+      }
       setLoading(false);
     });
     return () => unsubscribeAuth();
@@ -105,12 +117,15 @@ function MainApp() {
       const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       // Crear admin y vendedores de prueba si está vacío
       if (data.length === 0) {
-        setDoc(getDocRef('inv_users', 'admin_1'), { name: 'Admin Principal', role: 'admin' });
+        setDoc(getDocRef('inv_users', 'admin_1'), { name: 'Admin Principal', role: 'admin' }).catch(e => setSystemError(`Error Guardando Admin: ${e.message}`));
         setDoc(getDocRef('inv_users', 'rep_1'), { name: 'Juan Perez', role: 'rep' });
         setDoc(getDocRef('inv_users', 'rep_2'), { name: 'Maria Lopez', role: 'rep' });
       }
       setUsersList(data);
-    }, (err) => console.error(err)));
+    }, (err) => {
+      console.error(err);
+      setSystemError(`Error Base de Datos: ${err.message}. Revisa las reglas de Firestore.`);
+    }));
 
     // Tiendas/Farmacias
     unsubs.push(onSnapshot(getCollectionRef('inv_stores'), (snap) => {
@@ -160,7 +175,7 @@ function MainApp() {
   if (loading) return <div className="flex h-screen items-center justify-center bg-gray-50"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>;
 
   if (!profile) {
-    return <LoginScreen usersList={usersList} onSelectProfile={setProfile} />;
+    return <LoginScreen usersList={usersList} onSelectProfile={setProfile} systemError={systemError} />;
   }
 
   return (
@@ -169,8 +184,9 @@ function MainApp() {
       <header className="bg-blue-700 text-white p-4 shadow-md flex justify-between items-center sticky top-0 z-10">
         <div className="flex items-center gap-2">
           {profile.role === 'admin' ? <LayoutDashboard size={24} /> : <Store size={24} />}
-          <h1 className="text-xl font-bold truncate tracking-wide">
+          <h1 className="text-xl font-bold truncate tracking-wide flex items-baseline gap-2">
             {profile.role === 'admin' ? 'Panel Admin' : 'NexaStock'}
+            <span className="text-xs font-normal opacity-75">{APP_VERSION}</span>
           </h1>
         </div>
         <div className="flex items-center gap-4">
@@ -183,6 +199,13 @@ function MainApp() {
 
       {/* Área Principal */}
       <main className="flex-1 w-full max-w-7xl mx-auto p-2 sm:p-4">
+        {systemError && (
+          <div className="mb-4 bg-red-100 text-red-800 p-4 rounded-xl shadow flex items-start gap-3 border border-red-300">
+            <AlertCircle className="shrink-0 mt-0.5" />
+            <p className="text-sm font-medium">{systemError}</p>
+          </div>
+        )}
+
         {profile.role === 'admin' ? (
           <AdminDashboard 
             submissions={submissions} 
@@ -206,20 +229,30 @@ function MainApp() {
 }
 
 // --- PANTALLA DE INICIO DE SESIÓN ---
-function LoginScreen({ usersList, onSelectProfile }) {
+function LoginScreen({ usersList, onSelectProfile, systemError }) {
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredUsers = usersList.filter(u => u.name?.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4 flex-col gap-4">
+      {systemError && (
+        <div className="w-full max-w-md bg-red-100 border border-red-300 p-4 rounded-xl text-red-800 text-sm flex items-start gap-2 shadow-sm animate-fade-in">
+           <AlertCircle size={20} className="shrink-0" />
+           <p><b>Aviso del Sistema:</b> <br/>{systemError}</p>
+        </div>
+      )}
+
       <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
         <div className="flex justify-center mb-4 relative w-fit mx-auto">
           <Boxes size={56} className="text-blue-600" />
           <ScanLine size={28} className="absolute -bottom-2 -right-2 text-green-500 bg-white rounded-lg p-0.5" />
         </div>
         <h2 className="text-3xl font-black text-center mb-1 text-gray-800 tracking-tight">NexaStock</h2>
-        <p className="text-center text-sm text-gray-500 mb-6 font-medium">Control de Inventarios</p>
+        <p className="text-center text-sm text-gray-500 mb-6 font-medium flex items-center justify-center gap-2">
+          Control de Inventarios 
+          <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs">{APP_VERSION}</span>
+        </p>
         
         <div className="relative mb-6">
           <Search className="absolute left-3 top-3 text-gray-400" size={20} />
@@ -234,7 +267,9 @@ function LoginScreen({ usersList, onSelectProfile }) {
 
         <div className="max-h-64 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
           {filteredUsers.length === 0 ? (
-            <p className="text-center text-gray-500 py-4">No se encontraron usuarios.</p>
+            <div className="text-center text-gray-500 py-4">
+               {systemError ? 'Esperando conexión con la base de datos...' : 'No se encontraron usuarios.'}
+            </div>
           ) : (
             filteredUsers.map(u => (
               <button
@@ -514,26 +549,33 @@ function InventoryForm({ store, products, profile, getCollectionRef, onBack }) {
 
 // --- MODAL DE ESCÁNER CON HTML5-QRCODE ---
 function BarcodeScannerModal({ onClose, onScan }) {
+  const [error, setError] = useState('');
+
   useEffect(() => {
-    let html5QrcodeScanner;
+    let html5QrCode;
     
-    const initScanner = () => {
+    const initScanner = async () => {
       const qrReaderEl = document.getElementById('qr-reader');
       if (!qrReaderEl) return; // Si el usuario cerró el modal rápido
 
-      if (window.Html5QrcodeScanner) {
-        html5QrcodeScanner = new window.Html5QrcodeScanner(
-          "qr-reader",
-          { fps: 10, qrbox: {width: 250, height: 250} },
-          false
-        );
-        html5QrcodeScanner.render(
-          (decodedText) => {
-            html5QrcodeScanner.clear();
-            onScan(decodedText);
-          },
-          (err) => { /* ignorar errores menores de escaneo continuo */ }
-        );
+      // Usamos Html5Qrcode directo en lugar del Scanner genérico para auto-iniciar
+      if (window.Html5Qrcode) {
+        html5QrCode = new window.Html5Qrcode("qr-reader");
+        try {
+          await html5QrCode.start(
+            { facingMode: "environment" }, // Prioriza la cámara trasera
+            { fps: 10, qrbox: { width: 250, height: 250 } },
+            (decodedText) => {
+              html5QrCode.stop().then(() => {
+                onScan(decodedText);
+              }).catch(err => console.error("Error deteniendo escáner", err));
+            },
+            (errorMessage) => { /* ignorar errores menores de escaneo continuo */ }
+          );
+        } catch (err) {
+          console.error("Error iniciando cámara:", err);
+          setError("No se pudo acceder a la cámara. Por favor, verifique los permisos en su navegador.");
+        }
       } else {
         // Reintentar si la librería aún está descargándose
         setTimeout(initScanner, 500);
@@ -545,23 +587,31 @@ function BarcodeScannerModal({ onClose, onScan }) {
 
     return () => {
       clearTimeout(timer);
-      if (html5QrcodeScanner) {
-        html5QrcodeScanner.clear().catch(err => console.error("Error limpiando escáner", err));
+      if (html5QrCode && html5QrCode.isScanning) {
+        html5QrCode.stop().catch(err => console.error("Error limpiando escáner", err));
       }
     };
-  }, []);
+  }, [onScan]);
 
   return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex flex-col">
-      <div className="p-4 flex justify-between items-center bg-black text-white">
+    <div className="fixed inset-0 bg-black/95 z-50 flex flex-col">
+      <div className="p-4 flex justify-between items-center bg-transparent text-white">
         <h3 className="font-bold">Escanear Código</h3>
-        <button onClick={onClose} className="p-2 bg-gray-800 rounded-full"><X size={20} /></button>
+        <button onClick={onClose} className="p-2 bg-gray-800 rounded-full hover:bg-gray-700 transition-colors"><X size={20} /></button>
       </div>
       <div className="flex-1 flex items-center justify-center p-4">
-        <div id="qr-reader" className="w-full max-w-sm bg-white rounded-xl overflow-hidden"></div>
+        {error ? (
+          <div className="text-red-500 bg-red-100 p-4 rounded-xl text-center font-medium max-w-xs">
+            <AlertCircle className="mx-auto mb-2" size={32} />
+            {error}
+          </div>
+        ) : (
+          <div id="qr-reader" className="w-full max-w-sm rounded-xl overflow-hidden shadow-2xl bg-black"></div>
+        )}
       </div>
-      <div className="p-4 text-center text-white text-sm">
-        Apunte la cámara al código de barras o QR del producto.
+      <div className="p-6 text-center text-white/70 text-sm bg-transparent">
+        Apunte la cámara al código de barras o QR del producto.<br/>
+        Asegúrese de otorgar permisos a la cámara.
       </div>
     </div>
   );

@@ -1,12 +1,13 @@
+
 // @ts-nocheck
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, addDoc, updateDoc } from 'firebase/firestore';
-import { Camera, Search, Plus, Trash2, Download, LogOut, Users, Store, Package, LayoutDashboard, FileUp, X, Check, AlertCircle, ScanLine, Boxes, Lock, ChevronLeft, Eye, EyeOff } from 'lucide-react';
+import { Camera, Search, Plus, Trash2, Download, LogOut, Users, Store, Package, LayoutDashboard, FileUp, X, Check, AlertCircle, ScanLine, Boxes, Lock, ChevronLeft, Eye, EyeOff, Filter } from 'lucide-react';
 
 // --- VERSIÓN DE LA APP ---
-const APP_VERSION = "v1.2.0";
+const APP_VERSION = "v1.3.0";
 
 // --- INICIALIZACIÓN DE FIREBASE ---
 const myFirebaseConfig = {
@@ -59,7 +60,17 @@ export default function App() {
 // --- COMPONENTE PRINCIPAL ---
 function MainApp() {
   const [user, setUser] = useState(null);
-  const [profile, setProfile] = useState(null);
+  
+  // PERSISTENCIA DE SESIÓN: Cargar perfil desde localStorage al iniciar
+  const [profile, setProfile] = useState(() => {
+    try {
+      const savedProfile = localStorage.getItem('nexastock_profile');
+      return savedProfile ? JSON.parse(savedProfile) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
   const [loading, setLoading] = useState(true);
   const [systemError, setSystemError] = useState(''); 
 
@@ -70,6 +81,16 @@ function MainApp() {
 
   const getCollectionRef = (colName) => collection(db, 'artifacts', appId, 'public', 'data', colName);
   const getDocRef = (colName, docId) => doc(db, 'artifacts', appId, 'public', 'data', colName, docId);
+
+  // Función para manejar el inicio/cierre de sesión persistente
+  const handleSetProfile = (p) => {
+    setProfile(p);
+    if (p) {
+      localStorage.setItem('nexastock_profile', JSON.stringify(p));
+    } else {
+      localStorage.removeItem('nexastock_profile');
+    }
+  };
 
   useEffect(() => {
     const initAuth = async () => {
@@ -156,13 +177,13 @@ function MainApp() {
   );
 
   if (!profile) {
-    return <LoginScreen usersList={usersList} onSelectProfile={setProfile} systemError={systemError} />;
+    return <LoginScreen usersList={usersList} onSelectProfile={handleSetProfile} systemError={systemError} />;
   }
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-800 selection:bg-indigo-500 selection:text-white">
       {/* Header Estilizado */}
-      <header className="bg-gradient-to-r from-slate-900 to-indigo-950 text-white p-4 shadow-lg sticky top-0 z-10 border-b border-indigo-500/30">
+      <header className="bg-gradient-to-r from-slate-900 to-indigo-950 text-white p-4 shadow-lg sticky top-0 z-20 border-b border-indigo-500/30">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-3">
             <div className="bg-indigo-500/20 p-2 rounded-xl backdrop-blur-sm border border-indigo-500/30">
@@ -170,19 +191,15 @@ function MainApp() {
             </div>
             <div>
               <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
-                {profile.role === 'admin' ? 'Panel de Control' : 'NexaStock'}
+                {profile.role === 'admin' ? 'Panel Control' : 'NexaStock'}
                 <span className="bg-indigo-500/30 text-indigo-200 px-2 py-0.5 rounded-full text-[10px] font-medium tracking-wider border border-indigo-500/20">{APP_VERSION}</span>
               </h1>
-              <p className="text-xs text-indigo-200/70 font-medium">{profile.role === 'admin' ? 'Modo Administrador' : 'Modo Vendedor'}</p>
+              <p className="text-xs text-indigo-200/70 font-medium truncate max-w-[150px] sm:max-w-none">Sesión: {profile.name}</p>
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <div className="hidden md:flex flex-col items-end mr-2">
-              <span className="text-sm font-semibold">{profile.name}</span>
-              <span className="text-xs text-indigo-300">Conectado</span>
-            </div>
             <button 
-              onClick={() => setProfile(null)} 
+              onClick={() => handleSetProfile(null)} 
               className="bg-white/10 p-2.5 rounded-xl hover:bg-rose-500 hover:text-white transition-all duration-300 border border-white/5 shadow-sm"
               title="Cerrar Sesión"
             >
@@ -193,9 +210,9 @@ function MainApp() {
       </header>
 
       {/* Área Principal */}
-      <main className="flex-1 w-full max-w-7xl mx-auto p-3 sm:p-6">
+      <main className="flex-1 w-full max-w-7xl mx-auto p-0 md:p-4 pb-20 md:pb-6 relative">
         {systemError && (
-          <div className="mb-6 bg-rose-50 text-rose-800 p-4 rounded-2xl shadow-sm flex items-start gap-3 border border-rose-200">
+          <div className="m-4 mb-2 md:m-0 md:mb-6 bg-rose-50 text-rose-800 p-4 rounded-2xl shadow-sm flex items-start gap-3 border border-rose-200">
             <AlertCircle className="shrink-0 mt-0.5 text-rose-500" />
             <p className="text-sm font-medium">{systemError}</p>
           </div>
@@ -223,7 +240,7 @@ function MainApp() {
   );
 }
 
-// --- PANTALLA DE INICIO DE SESIÓN (REDISEÑADA CON CLAVE) ---
+// --- PANTALLA DE INICIO DE SESIÓN ---
 function LoginScreen({ usersList, onSelectProfile, systemError }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
@@ -236,7 +253,6 @@ function LoginScreen({ usersList, onSelectProfile, systemError }) {
   const handleLogin = (e) => {
     e.preventDefault();
     setPassError('');
-    // Validar clave (Si no tiene clave en BD, permite '1234' por defecto temporalmente)
     const validPassword = selectedUser.password || '1234';
     
     if (password === validPassword) {
@@ -254,7 +270,6 @@ function LoginScreen({ usersList, onSelectProfile, systemError }) {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-900 p-4 relative overflow-hidden">
-      {/* Fondo decorativo moderno */}
       <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-indigo-600/20 blur-[120px] rounded-full pointer-events-none"></div>
       <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-purple-600/20 blur-[120px] rounded-full pointer-events-none"></div>
 
@@ -267,8 +282,6 @@ function LoginScreen({ usersList, onSelectProfile, systemError }) {
         )}
 
         <div className="bg-slate-800/80 backdrop-blur-xl p-8 rounded-[2rem] shadow-2xl border border-slate-700/50">
-          
-          {/* Cabecera / Logo */}
           <div className="flex flex-col items-center mb-8">
             <div className="relative mb-4 group">
               <div className="absolute inset-0 bg-indigo-500 rounded-2xl blur-lg opacity-50 group-hover:opacity-75 transition-opacity duration-500"></div>
@@ -281,7 +294,6 @@ function LoginScreen({ usersList, onSelectProfile, systemError }) {
             <p className="text-slate-400 text-sm font-medium mt-1 tracking-wide uppercase">Sistema de Control</p>
           </div>
 
-          {/* PASO 1: SELECCIONAR USUARIO */}
           {!selectedUser ? (
             <div className="animate-fade-in">
               <div className="relative mb-6">
@@ -323,7 +335,6 @@ function LoginScreen({ usersList, onSelectProfile, systemError }) {
               </div>
             </div>
           ) : (
-            /* PASO 2: INGRESAR CONTRASEÑA */
             <div className="animate-fade-in-up">
               <button 
                 onClick={resetSelection}
@@ -384,7 +395,7 @@ function LoginScreen({ usersList, onSelectProfile, systemError }) {
   );
 }
 
-// --- VISTA DEL VENDEDOR (REDISEÑADA) ---
+// --- VISTA DEL VENDEDOR ---
 function RepApp({ profile, stores, products, getCollectionRef }) {
   const [selectedStore, setSelectedStore] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -397,8 +408,7 @@ function RepApp({ profile, stores, products, getCollectionRef }) {
   }
 
   return (
-    <div className="space-y-6 max-w-lg mx-auto pb-20">
-      {/* Saludo y Buscador */}
+    <div className="space-y-6 max-w-lg mx-auto pb-20 p-4 md:p-0">
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
         <h2 className="text-2xl font-black text-slate-800 mb-1">Tus Farmacias</h2>
         <p className="text-slate-500 mb-6 text-sm">Selecciona una tienda para comenzar el inventario.</p>
@@ -414,7 +424,6 @@ function RepApp({ profile, stores, products, getCollectionRef }) {
         </div>
       </div>
 
-      {/* Lista de Farmacias (Estilo Tarjetas Modernas) */}
       <div className="grid grid-cols-1 gap-4">
         {myStores.length === 0 ? (
           <div className="bg-amber-50 text-amber-800 p-6 rounded-3xl border border-amber-200 flex flex-col items-center text-center">
@@ -453,7 +462,7 @@ function RepApp({ profile, stores, products, getCollectionRef }) {
   );
 }
 
-// --- FORMULARIO DE INVENTARIO (REDISEÑADO) ---
+// --- FORMULARIO DE INVENTARIO ---
 function InventoryForm({ store, products, profile, getCollectionRef, onBack }) {
   const [items, setItems] = useState([]); 
   const [searchTerm, setSearchTerm] = useState('');
@@ -515,7 +524,6 @@ function InventoryForm({ store, products, profile, getCollectionRef, onBack }) {
 
   return (
     <div className="flex flex-col h-[calc(100vh-80px)] max-w-lg mx-auto bg-slate-50 relative">
-      {/* Cabecera Flotante */}
       <div className="bg-white p-5 rounded-b-3xl shadow-sm border-b border-slate-200 shrink-0 z-10 sticky top-0">
         <div className="flex justify-between items-start mb-5">
           <div className="pr-4">
@@ -553,10 +561,8 @@ function InventoryForm({ store, products, profile, getCollectionRef, onBack }) {
         </div>
       </div>
 
-      {/* Área de Listas */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar pb-24">
         {searchTerm ? (
-          // Resultados Búsqueda
           <div className="space-y-3 pb-20">
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-2">Resultados ({filteredProducts.length})</p>
             {filteredProducts.slice(0, 10).map(p => (
@@ -582,7 +588,6 @@ function InventoryForm({ store, products, profile, getCollectionRef, onBack }) {
             ))}
           </div>
         ) : (
-          // Items Agregados
           <div className="space-y-3 pb-24">
             <div className="flex justify-between items-center ml-2 mr-1">
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Cargados en repisa</p>
@@ -617,8 +622,7 @@ function InventoryForm({ store, products, profile, getCollectionRef, onBack }) {
         )}
       </div>
 
-      {/* Botón Flotante Inferior */}
-      <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-slate-50 via-slate-50 to-transparent pt-10">
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-slate-50 via-slate-50 to-transparent pt-10 md:max-w-lg md:mx-auto">
         <button 
           onClick={handleSubmit}
           disabled={items.length === 0 || isSubmitting}
@@ -634,35 +638,55 @@ function InventoryForm({ store, products, profile, getCollectionRef, onBack }) {
   );
 }
 
-// --- MODAL DE ESCÁNER ---
+// --- MODAL DE ESCÁNER (MOTOR MEJORADO) ---
 function BarcodeScannerModal({ onClose, onScan }) {
   const [error, setError] = useState('');
 
   useEffect(() => {
     let html5QrCode;
+    
     const initScanner = async () => {
       const qrReaderEl = document.getElementById('qr-reader');
       if (!qrReaderEl) return; 
 
       if (window.Html5Qrcode) {
-        html5QrCode = new window.Html5Qrcode("qr-reader");
         try {
-          await html5QrCode.start(
-            { facingMode: "environment" }, 
-            { fps: 10, qrbox: { width: 250, height: 250 } },
-            (decodedText) => {
-              html5QrCode.stop().then(() => onScan(decodedText)).catch(err => console.error(err));
-            },
-            () => {}
-          );
+          // 1. Obtener lista de cámaras disponibles (fuerza permiso nativo)
+          const devices = await window.Html5Qrcode.getCameras();
+          if (devices && devices.length > 0) {
+            // 2. Intentar encontrar la cámara trasera primero
+            let cameraId = devices[0].id; // default
+            for (let i = 0; i < devices.length; i++) {
+              if (devices[i].label.toLowerCase().includes("back") || devices[i].label.toLowerCase().includes("trasera")) {
+                cameraId = devices[i].id;
+                break;
+              }
+            }
+
+            // 3. Iniciar escáner con el ID de la cámara seleccionada
+            html5QrCode = new window.Html5Qrcode("qr-reader");
+            await html5QrCode.start(
+              cameraId, 
+              { fps: 10, qrbox: { width: 250, height: 250 } },
+              (decodedText) => {
+                html5QrCode.stop().then(() => onScan(decodedText)).catch(err => console.error(err));
+              },
+              () => {} // Ignorar errores de escaneo temporal
+            );
+          } else {
+            setError("No se encontraron cámaras en este dispositivo.");
+          }
         } catch (err) {
-          setError("No se pudo acceder a la cámara. Verifique los permisos.");
+          console.error("Error iniciando cámara:", err);
+          setError("Permiso denegado o cámara en uso por otra aplicación.");
         }
       } else {
-        setTimeout(initScanner, 500);
+        setTimeout(initScanner, 500); // Reintentar si la librería aún no carga
       }
     };
-    const timer = setTimeout(initScanner, 100);
+
+    const timer = setTimeout(initScanner, 300); // Pequeño delay para asegurar que el DOM cargó
+
     return () => {
       clearTimeout(timer);
       if (html5QrCode && html5QrCode.isScanning) html5QrCode.stop().catch(() => {});
@@ -683,7 +707,6 @@ function BarcodeScannerModal({ onClose, onScan }) {
           </div>
         ) : (
           <div className="relative">
-            {/* Esquinas del escáner (Visuales) */}
             <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-emerald-400 rounded-tl-xl z-10"></div>
             <div className="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 border-emerald-400 rounded-tr-xl z-10"></div>
             <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-emerald-400 rounded-bl-xl z-10"></div>
@@ -701,51 +724,52 @@ function BarcodeScannerModal({ onClose, onScan }) {
   );
 }
 
-// --- PANEL DE CONTROL ADMINISTRADOR (REDISEÑADO) ---
+// --- PANEL DE CONTROL ADMINISTRADOR (CON MENÚ INFERIOR) ---
 function AdminDashboard({ submissions, stores, products, users, getCollectionRef, getDocRef }) {
   const [activeTab, setActiveTab] = useState('live'); 
 
   return (
-    <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden flex flex-col md:flex-row min-h-[85vh]">
-      {/* Barra Lateral Admin */}
-      <div className="w-full md:w-64 bg-slate-50 border-r border-slate-200 p-5 flex flex-row md:flex-col gap-2 overflow-x-auto shrink-0">
-        <TabButton icon={<LayoutDashboard size={20}/>} label="Panel en Vivo" active={activeTab === 'live'} onClick={() => setActiveTab('live')} />
-        <div className="hidden md:block my-4 border-t border-slate-200"></div>
-        <p className="hidden md:block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-3">Base de Datos</p>
-        <TabButton icon={<Store size={20}/>} label="Farmacias" active={activeTab === 'stores'} onClick={() => setActiveTab('stores')} />
-        <TabButton icon={<Package size={20}/>} label="Productos" active={activeTab === 'products'} onClick={() => setActiveTab('products')} />
-        <TabButton icon={<Users size={20}/>} label="Personal" active={activeTab === 'users'} onClick={() => setActiveTab('users')} />
-      </div>
-
-      {/* Área de Contenido */}
-      <div className="flex-1 p-5 md:p-8 overflow-y-auto bg-white custom-scrollbar">
+    <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden flex flex-col min-h-[85vh] md:min-h-[80vh] relative">
+      
+      {/* Área de Contenido Principal (Ocupa todo menos la barra inferior) */}
+      <div className="flex-1 p-4 md:p-8 overflow-y-auto bg-slate-50/50 custom-scrollbar pb-24 md:pb-24">
         {activeTab === 'live' && <AdminLiveView submissions={submissions} />}
         {activeTab === 'stores' && <CatalogManager title="Farmacias" collectionName="inv_stores" data={stores} fields={[{key: 'name', label: 'Nombre Local'}, {key: 'address', label: 'Dirección'}, {key: 'assignedTo', label: 'Vendedor Asignado'}]} getCollectionRef={getCollectionRef} getDocRef={getDocRef} />}
         {activeTab === 'products' && <CatalogManager title="Catálogo de Productos" collectionName="inv_products" data={products} fields={[{key: 'name', label: 'Nombre Producto'}, {key: 'barcode', label: 'Cód. Barras'}]} getCollectionRef={getCollectionRef} getDocRef={getDocRef} />}
-        {/* TABLA DE USUARIOS ACTUALIZADA CON CAMPO DE CLAVE */}
         {activeTab === 'users' && <CatalogManager title="Gestión de Personal" collectionName="inv_users" data={users} fields={[{key: 'name', label: 'Nombre Completo'}, {key: 'role', label: 'Rol (admin/rep)'}, {key: 'password', label: 'Clave de Acceso'}]} getCollectionRef={getCollectionRef} getDocRef={getDocRef} />}
+      </div>
+
+      {/* Menú de Navegación Inferior (Bottom Nav) */}
+      <div className="absolute bottom-0 left-0 w-full bg-white border-t border-slate-200 p-2 md:p-3 flex flex-row justify-around items-center shadow-[0_-5px_20px_rgba(0,0,0,0.03)] z-10 overflow-x-auto">
+        <TabButton icon={<LayoutDashboard size={20}/>} label="En Vivo" active={activeTab === 'live'} onClick={() => setActiveTab('live')} />
+        <TabButton icon={<Store size={20}/>} label="Farmacias" active={activeTab === 'stores'} onClick={() => setActiveTab('stores')} />
+        <TabButton icon={<Package size={20}/>} label="Productos" active={activeTab === 'products'} onClick={() => setActiveTab('products')} />
+        <TabButton icon={<Users size={20}/>} label="Personal" active={activeTab === 'users'} onClick={() => setActiveTab('users')} />
       </div>
     </div>
   );
 }
 
+// Botón adaptado para Menú Inferior
 function TabButton({ icon, label, active, onClick }) {
   return (
     <button 
       onClick={onClick}
-      className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl text-sm font-bold transition-all whitespace-nowrap
-        ${active ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200' : 'text-slate-500 hover:bg-slate-200/50 hover:text-slate-800'}`}
+      className={`flex flex-col items-center gap-1.5 p-2 min-w-[70px] md:min-w-[90px] rounded-2xl transition-all duration-300
+        ${active ? 'text-indigo-600 bg-indigo-50/80 scale-105' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}
     >
-      {icon} <span>{label}</span>
+      <div className={`${active ? 'drop-shadow-sm' : ''}`}>{icon}</div>
+      <span className="text-[10px] md:text-xs font-bold tracking-wide">{label}</span>
     </button>
   );
 }
 
-// --- VISTA EN VIVO ---
+// --- VISTA EN VIVO CON FILTROS DESPLEGABLES ---
 function AdminLiveView({ submissions }) {
   const [filterStore, setFilterStore] = useState('');
   const [filterRep, setFilterRep] = useState('');
   const [filterDate, setFilterDate] = useState('');
+  const [showFilters, setShowFilters] = useState(false); // Estado para filtros desplegables
 
   const filteredData = submissions.filter(sub => {
     const matchStore = filterStore ? sub.storeName.toLowerCase().includes(filterStore.toLowerCase()) : true;
@@ -773,33 +797,54 @@ function AdminLiveView({ submissions }) {
     link.click();
   };
 
+  const activeFiltersCount = (filterStore ? 1 : 0) + (filterRep ? 1 : 0) + (filterDate ? 1 : 0);
+
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div className="space-y-6">
+      
+      {/* Cabecera y Botones de Acción */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-3xl shadow-sm border border-slate-200">
         <div>
-          <h2 className="text-3xl font-black text-slate-800 tracking-tight">Actividad Reciente</h2>
-          <p className="text-sm text-slate-500 mt-1 font-medium">Monitorea los inventarios enviados desde la calle.</p>
+          <h2 className="text-2xl md:text-3xl font-black text-slate-800 tracking-tight">Actividad Reciente</h2>
+          <p className="text-sm text-slate-500 mt-1 font-medium">Monitorea los inventarios en tiempo real.</p>
         </div>
-        <button onClick={downloadCSV} className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold shadow-md shadow-emerald-200 transition-all">
-          <Download size={18} /> Exportar CSV
-        </button>
+        
+        <div className="flex gap-2 w-full sm:w-auto">
+          {/* Botón Filtros Desplegable */}
+          <button 
+            onClick={() => setShowFilters(!showFilters)} 
+            className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold transition-all border 
+              ${showFilters || activeFiltersCount > 0 ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+          >
+            <Filter size={18} /> 
+            Filtros {activeFiltersCount > 0 && <span className="bg-indigo-600 text-white w-5 h-5 rounded-full text-xs flex items-center justify-center">{activeFiltersCount}</span>}
+          </button>
+          
+          <button onClick={downloadCSV} className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold shadow-md shadow-emerald-200 transition-all">
+            <Download size={18} /> CSV
+          </button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-5 rounded-3xl border border-slate-200">
-        <div>
-          <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Filtrar Farmacia</label>
-          <input type="text" value={filterStore} onChange={e => setFilterStore(e.target.value)} className="w-full p-2.5 border border-slate-200 bg-white rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none font-medium" placeholder="Ej. San Juan..." />
+      {/* Contenedor de Filtros (Desplegable) */}
+      {showFilters && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white p-5 rounded-3xl border border-slate-200 shadow-sm animate-fade-in-up">
+          <div>
+            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Farmacia</label>
+            <input type="text" value={filterStore} onChange={e => setFilterStore(e.target.value)} className="w-full p-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none font-medium" placeholder="Buscar por nombre..." />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Vendedor</label>
+            <input type="text" value={filterRep} onChange={e => setFilterRep(e.target.value)} className="w-full p-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none font-medium" placeholder="Buscar por nombre..." />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Fecha Exacta</label>
+            <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} className="w-full p-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-slate-600" />
+          </div>
         </div>
-        <div>
-          <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Filtrar Vendedor</label>
-          <input type="text" value={filterRep} onChange={e => setFilterRep(e.target.value)} className="w-full p-2.5 border border-slate-200 bg-white rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none font-medium" placeholder="Nombre..." />
-        </div>
-        <div>
-          <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Fecha Específica</label>
-          <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} className="w-full p-2.5 border border-slate-200 bg-white rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-slate-600" />
-        </div>
-      </div>
+      )}
 
+      {/* Tabla de Resultados */}
       <div className="border border-slate-200 rounded-3xl overflow-hidden shadow-sm bg-white">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-sm">
@@ -894,13 +939,13 @@ function CatalogManager({ title, collectionName, data, fields, getCollectionRef,
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-5 rounded-3xl shadow-sm border border-slate-200">
         <div>
-          <h2 className="text-3xl font-black text-slate-800 tracking-tight">{title}</h2>
-          <p className="text-sm text-slate-500 font-medium mt-1">Administra los registros o carga una lista masiva.</p>
+          <h2 className="text-2xl md:text-3xl font-black text-slate-800 tracking-tight">{title}</h2>
+          <p className="text-sm text-slate-500 font-medium mt-1">Administra los registros o carga una lista.</p>
         </div>
-        <div className="relative overflow-hidden inline-block">
-          <button className="flex items-center gap-2 bg-slate-900 text-white hover:bg-slate-800 px-5 py-2.5 rounded-xl font-bold transition-all shadow-md">
+        <div className="relative overflow-hidden inline-block w-full md:w-auto">
+          <button className="w-full md:w-auto flex items-center justify-center gap-2 bg-slate-900 text-white hover:bg-slate-800 px-5 py-2.5 rounded-xl font-bold transition-all shadow-md">
             <FileUp size={18} /> Importar CSV
           </button>
           <input type="file" accept=".csv" onChange={handleCSVUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
@@ -908,7 +953,7 @@ function CatalogManager({ title, collectionName, data, fields, getCollectionRef,
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1 bg-slate-50 p-6 rounded-3xl border border-slate-200 h-fit">
+        <div className="lg:col-span-1 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm h-fit">
           <h3 className="font-black text-slate-800 mb-5 flex items-center gap-2">
             {editingId ? <><span className="w-2 h-2 rounded-full bg-amber-500"></span> Editando Registro</> : <><span className="w-2 h-2 rounded-full bg-indigo-500"></span> Nuevo Registro</>}
           </h3>
@@ -919,7 +964,7 @@ function CatalogManager({ title, collectionName, data, fields, getCollectionRef,
                 <input 
                   type="text" required value={formData[f.key] || ''} 
                   onChange={e => setFormData({...formData, [f.key]: e.target.value})}
-                  className="w-full p-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-slate-700 bg-white shadow-sm"
+                  className="w-full p-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-slate-700 bg-slate-50 shadow-inner"
                 />
               </div>
             ))}

@@ -1,22 +1,22 @@
 // @ts-nocheck
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, addDoc, updateDoc } from 'firebase/firestore';
 import { Camera, Search, Plus, Trash2, Download, LogOut, Users, Store, Package, LayoutDashboard, FileUp, X, Check, AlertCircle, ScanLine, Boxes, Lock, ChevronLeft, Eye, EyeOff, Filter, ChevronRight, ClipboardList, ListPlus } from 'lucide-react';
- 
+
 // --- VERSIÓN DE LA APP ---
-const APP_VERSION = "v1.4.0";
+const APP_VERSION = "v1.5.0";
 
 // --- INICIALIZACIÓN DE FIREBASE ---
 const myFirebaseConfig = {
   apiKey: "AIzaSyAHJuYAOVPAghEOQjlqO-ZdnGMi_sk9hmg",
-  authDomain: "[nexaapp-4f2f4.firebaseapp.com](http://nexaapp-4f2f4.firebaseapp.com/)",
-  projectId: "nexaapp-4f2f4",
-  storageBucket: "nexaapp-4f2f4.firebasestorage.app",
-  messagingSenderId: "780963789506",
-  appId: "1:780963789506:web:54ea3e67921872470e995b",
-  measurementId: "G-7J51XR0NDD"
+authDomain: "[nexaapp-4f2f4.firebaseapp.com](http://nexaapp-4f2f4.firebaseapp.com/)",
+projectId: "nexaapp-4f2f4",
+storageBucket: "nexaapp-4f2f4.firebasestorage.app",
+messagingSenderId: "780963789506",
+appId: "1:780963789506:web:54ea3e67921872470e995b",
+measurementId: "G-7J51XR0NDD"
 };
 
 const isConfigMissing = myFirebaseConfig.apiKey === "TU_API_KEY" && typeof __firebase_config === 'undefined';
@@ -33,7 +33,6 @@ const appId = typeof __app_id !== 'undefined' && __app_id ? __app_id : 'default-
 
 // --- COMPONENTE ENVOLTORIO ---
 export default function App() {
-  // Ajuste de Título e Icono del navegador
   useEffect(() => {
     document.title = "NexaStock | Inventarios";
     const link = document.querySelector("link[rel*='icon']") || document.createElement('link');
@@ -149,29 +148,29 @@ function MainApp() {
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col font-sans text-slate-900 selection:bg-indigo-500 selection:text-white">
-      {/* Header Alto Contraste */}
+      {/* Header (Centrado y Ajustado) */}
       <header className="bg-indigo-700 text-white p-4 shadow-md sticky top-0 z-40">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm">
-              {profile.role === 'admin' ? <LayoutDashboard size={22} className="text-white" /> : <Store size={22} className="text-white" />}
+          <div className="flex items-center gap-4">
+            <div className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-sm shadow-inner shrink-0">
+              {profile.role === 'admin' ? <LayoutDashboard size={24} className="text-white" /> : <Store size={24} className="text-white" />}
             </div>
-            <div>
-              <h1 className="text-xl font-black tracking-tight flex items-center gap-2">
-                {profile.role === 'admin' ? 'Panel Control' : 'NexaStock'}
+            <div className="flex flex-col justify-center">
+              <h1 className="text-xl font-black tracking-tight flex items-center gap-2 leading-none mb-1">
+                {profile.role === 'admin' ? 'Panel Admin' : 'NexaStock'}
                 <span className="bg-indigo-900/50 text-indigo-100 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider">{APP_VERSION}</span>
               </h1>
-              <p className="text-xs text-indigo-200 font-medium truncate max-w-[150px] sm:max-w-none">Sesión: {profile.name}</p>
+              <p className="text-xs text-indigo-200 font-bold tracking-wide">Sesión: {profile.name}</p>
             </div>
           </div>
-          <button onClick={() => handleSetProfile(null)} className="bg-indigo-800 p-2.5 rounded-xl hover:bg-rose-500 hover:text-white transition-colors shadow-sm" title="Cerrar Sesión">
-            <LogOut size={18} />
+          <button onClick={() => handleSetProfile(null)} className="bg-indigo-800 p-3 rounded-2xl hover:bg-rose-500 hover:text-white transition-colors shadow-sm" title="Cerrar Sesión">
+            <LogOut size={20} />
           </button>
         </div>
       </header>
 
-      {/* Área Principal */}
-      <main className="flex-1 w-full max-w-7xl mx-auto p-0 md:p-4 pb-24 md:pb-6 relative">
+      {/* Área Principal (Con padding bottom para asegurar que la barra fija no tape contenido) */}
+      <main className="flex-1 w-full max-w-7xl mx-auto p-0 md:p-4 pb-28 md:pb-6 relative">
         {systemError && (
           <div className="m-4 mb-2 md:m-0 md:mb-6 bg-rose-50 text-rose-800 p-4 rounded-2xl shadow-sm flex items-start gap-3 border border-rose-200">
             <AlertCircle className="shrink-0 mt-0.5 text-rose-500" />
@@ -315,7 +314,7 @@ function RepApp({ profile, stores, products, getCollectionRef }) {
   if (selectedStore) return <InventoryForm store={selectedStore} products={products} profile={profile} getCollectionRef={getCollectionRef} onBack={() => setSelectedStore(null)} />;
 
   return (
-    <div className="space-y-6 max-w-lg mx-auto pb-20 p-4 md:p-0">
+    <div className="space-y-6 max-w-lg mx-auto p-4 md:p-0">
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
         <h2 className="text-2xl font-black text-slate-900 mb-2">Tus Farmacias</h2>
         <div className="relative">
@@ -337,15 +336,15 @@ function RepApp({ profile, stores, products, getCollectionRef }) {
           filteredStores.map(store => (
             <div key={store.id} className="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 hover:border-indigo-400 transition-all flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shrink-0">
-                  <Store size={24} />
+                <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shrink-0">
+                  <Store size={28} />
                 </div>
                 <div>
-                  <h3 className="font-black text-slate-900 text-lg leading-tight">{store.name}</h3>
-                  <p className="text-sm text-slate-500 font-medium mt-1 truncate max-w-[200px]">{store.address || 'Sin dirección'}</p>
+                  <h3 className="font-black text-slate-900 text-lg leading-tight mb-1">{store.name}</h3>
+                  <p className="text-sm text-slate-500 font-medium truncate max-w-[200px]">{store.address || 'Sin dirección'}</p>
                 </div>
               </div>
-              <button onClick={() => setSelectedStore(store)} className="w-full sm:w-auto bg-slate-900 text-white px-6 py-3 rounded-xl text-sm font-bold hover:bg-indigo-600 transition-colors text-center">
+              <button onClick={() => setSelectedStore(store)} className="w-full sm:w-auto bg-indigo-600 text-white px-6 py-3.5 rounded-xl text-sm font-bold hover:bg-indigo-700 transition-colors text-center shadow-md">
                 Inventariar
               </button>
             </div>
@@ -356,28 +355,33 @@ function RepApp({ profile, stores, products, getCollectionRef }) {
   );
 }
 
-// --- FORMULARIO DE INVENTARIO (DOS PESTAÑAS MEJORADAS) ---
+// --- FORMULARIO DE INVENTARIO (CON ESCANEO CONTINUO) ---
 function InventoryForm({ store, products, profile, getCollectionRef, onBack }) {
   const [items, setItems] = useState([]); 
   const [searchTerm, setSearchTerm] = useState('');
   const [showScanner, setShowScanner] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [scanToast, setScanToast] = useState(null); // Feedback visual del escáner continuo
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState('catalog'); // 'catalog' o 'cart'
+  const [activeTab, setActiveTab] = useState('catalog'); 
 
-  // Si no hay búsqueda, muestra todos los productos (Catálogo Intuitivo)
   const filteredProducts = products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()) || (p.barcode && p.barcode.includes(searchTerm)));
 
   const handleAddProduct = (product, qtyStr) => {
     setErrorMsg('');
     const qty = parseInt(qtyStr, 10);
     if (isNaN(qty) || qty <= 0) return setErrorMsg(`Cantidad inválida para ${product.name}`);
-    if (items.some(i => i.product.id === product.id)) return setErrorMsg(`${product.name} ya está en la lista.`);
     
-    setItems([{ product, qty }, ...items]);
+    setItems(prev => {
+      const exists = prev.find(i => i.product.id === product.id);
+      if (exists) return prev.map(i => i.product.id === product.id ? { ...i, qty: i.qty + qty } : i);
+      return [{ product, qty }, ...prev];
+    });
     setSearchTerm(''); 
-    setActiveTab('cart'); // Mueve al usuario al carrito para que vea lo que agregó
+    setActiveTab('cart'); 
   };
+
+  const handleRemoveItem = (productId) => setItems(items.filter(i => i.product.id !== productId));
 
   const handleSubmit = async () => {
     if (items.length === 0) return setErrorMsg("La lista está vacía.");
@@ -393,12 +397,21 @@ function InventoryForm({ store, products, profile, getCollectionRef, onBack }) {
     } catch (err) { setErrorMsg("Error de red al guardar."); setIsSubmitting(false); }
   };
 
-  const onScanSuccess = (decodedText) => {
-    setShowScanner(false);
-    setSearchTerm(decodedText);
+  // Función modificada para escaneo continuo
+  const onScanContinuous = (decodedText) => {
     const found = products.find(p => p.barcode === decodedText);
-    if (found) { setSearchTerm(found.name); setActiveTab('catalog'); }
-    else setErrorMsg(`Código ${decodedText} no existe.`);
+    if (found) {
+      setItems(prev => {
+        const exists = prev.find(i => i.product.id === found.id);
+        if (exists) return prev.map(i => i.product.id === found.id ? { ...i, qty: i.qty + 1 } : i);
+        return [{ product: found, qty: 1 }, ...prev];
+      });
+      setScanToast({ type: 'success', text: `+1 ${found.name}` });
+    } else {
+      setScanToast({ type: 'error', text: `Código no existe` });
+    }
+    // Ocultar mensaje luego de 2 segundos
+    setTimeout(() => setScanToast(null), 2000);
   };
 
   return (
@@ -420,13 +433,12 @@ function InventoryForm({ store, products, profile, getCollectionRef, onBack }) {
           </div>
         )}
 
-        {/* Pestañas (Tabs) */}
         <div className="flex border-b border-slate-200">
           <button onClick={() => setActiveTab('catalog')} className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'catalog' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
             <ListPlus size={18}/> Catálogo
           </button>
           <button onClick={() => setActiveTab('cart')} className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'cart' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
-            <ClipboardList size={18}/> Lista <span className="bg-slate-200 text-slate-700 px-1.5 rounded-md text-xs">{items.length}</span>
+            <ClipboardList size={18}/> Lista <span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-md text-xs">{items.reduce((acc, i) => acc + i.qty, 0)}</span>
           </button>
         </div>
       </div>
@@ -452,7 +464,7 @@ function InventoryForm({ store, products, profile, getCollectionRef, onBack }) {
                       <p className="font-black text-slate-800 text-sm leading-tight">{p.name}</p>
                       <p className="text-xs text-slate-500 font-medium mt-0.5">Cod: {p.barcode || 'S/N'}</p>
                     </div>
-                    <input type="number" id={`qty-${p.id}`} placeholder="0" min="1" className="w-16 h-11 border border-slate-200 bg-slate-50 rounded-xl text-center font-black text-slate-800 focus:ring-2 focus:ring-indigo-600 outline-none" />
+                    <input type="number" id={`qty-${p.id}`} placeholder="1" min="1" defaultValue="1" className="w-16 h-11 border border-slate-200 bg-slate-50 rounded-xl text-center font-black text-slate-800 focus:ring-2 focus:ring-indigo-600 outline-none" />
                     <button onClick={() => handleAddProduct(p, document.getElementById(`qty-${p.id}`).value)} className="bg-indigo-100 text-indigo-700 w-11 h-11 rounded-xl hover:bg-indigo-600 hover:text-white flex items-center justify-center font-bold transition-colors shrink-0">
                       <Plus size={20} />
                     </button>
@@ -475,7 +487,6 @@ function InventoryForm({ store, products, profile, getCollectionRef, onBack }) {
                 <div key={idx} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
                   <div>
                     <p className="font-black text-slate-800 text-sm">{item.product.name}</p>
-                    {/* SOLUCIÓN AL PUNTO 8: Columna clara de cantidad */}
                     <div className="mt-1 flex items-center gap-2">
                       <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Cant:</span>
                       <span className="bg-slate-100 text-slate-800 font-black text-sm px-2 py-0.5 rounded-lg border border-slate-200">{item.qty}</span>
@@ -501,37 +512,47 @@ function InventoryForm({ store, products, profile, getCollectionRef, onBack }) {
         </button>
       </div>
 
-      {showScanner && <BarcodeScannerModal onClose={() => setShowScanner(false)} onScan={onScanSuccess} />}
+      {showScanner && <BarcodeScannerModal onClose={() => setShowScanner(false)} onScan={onScanContinuous} scanToast={scanToast} />}
     </div>
   );
 }
 
-// --- MODAL DE ESCÁNER (MOTOR SEGURO) ---
-function BarcodeScannerModal({ onClose, onScan }) {
+// --- MODAL DE ESCÁNER CONTINUO ---
+function BarcodeScannerModal({ onClose, onScan, scanToast }) {
   const [error, setError] = useState('');
 
   useEffect(() => {
     let html5QrCode;
+    let lastScan = '';
+    let lastTime = 0;
+
     const initScanner = async () => {
       const el = document.getElementById('qr-reader');
       if (!el || !window.Html5Qrcode) return setTimeout(initScanner, 500);
 
       html5QrCode = new window.Html5Qrcode("qr-reader");
       const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-      const successCb = (text) => { html5QrCode.stop().then(() => onScan(text)).catch(e => console.error(e)); };
+      
+      const successCb = (text) => { 
+        const now = Date.now();
+        // Evitar escanear el MISMO código repetidamente en menos de 2.5 segundos
+        if (text === lastScan && now - lastTime < 2500) return;
+        lastScan = text;
+        lastTime = now;
+        onScan(text); 
+        // ¡NO DETENEMOS EL ESCÁNER PARA PERMITIR MÚLTIPLES LECTURAS!
+      };
 
       try {
-        // Intento 1: Cámara trasera explícita (Mobile)
         await html5QrCode.start({ facingMode: "environment" }, config, successCb, ()=>{});
       } catch (err1) {
         try {
-          // Intento 2: Cualquier cámara disponible
           const devices = await window.Html5Qrcode.getCameras();
           if (devices && devices.length > 0) {
             await html5QrCode.start(devices[0].id, config, successCb, ()=>{});
           } else throw new Error("No cámaras");
         } catch (err2) {
-          setError("Acceso a cámara denegado o no disponible.");
+          setError("Acceso a cámara denegado.");
         }
       }
     };
@@ -542,17 +563,26 @@ function BarcodeScannerModal({ onClose, onScan }) {
   return (
     <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-sm z-50 flex flex-col">
       <div className="p-4 flex justify-between items-center text-white">
-        <h3 className="font-bold">Escanear</h3>
+        <h3 className="font-bold">Escanear (Múltiple)</h3>
         <button onClick={onClose} className="p-2 bg-white/20 rounded-full"><X size={20} /></button>
       </div>
-      <div className="flex-1 flex items-center justify-center p-6">
+      <div className="flex-1 flex items-center justify-center p-6 relative">
+        {/* Toast Flotante de Escaneo Exitoso */}
+        {scanToast && (
+          <div className={`absolute top-10 z-50 px-6 py-3 rounded-full shadow-2xl font-black text-lg animate-fade-in ${scanToast.type === 'success' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
+            {scanToast.text}
+          </div>
+        )}
+
         {error ? (
           <div className="text-rose-400 bg-rose-500/10 p-6 rounded-3xl text-center font-bold max-w-xs border border-rose-500/20"><AlertCircle className="mx-auto mb-2" size={32} />{error}</div>
         ) : (
           <div id="qr-reader" className="w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl bg-black aspect-square border-2 border-slate-700"></div>
         )}
       </div>
-      <div className="p-8 text-center text-slate-300 font-medium text-sm">Ubique el código en el recuadro.</div>
+      <div className="p-8 text-center text-slate-300 font-medium text-sm">
+        Mantenga la cámara abierta. <br/>Puede escanear varios productos seguidos.
+      </div>
     </div>
   );
 }
@@ -561,25 +591,23 @@ function BarcodeScannerModal({ onClose, onScan }) {
 function AdminDashboard({ submissions, stores, products, users, getCollectionRef, getDocRef }) {
   const [activeTab, setActiveTab] = useState('live'); 
 
-  // SOLUCIÓN PUNTO 11: Scroll al inicio al cambiar pestaña
   useEffect(() => { window.scrollTo(0,0); }, [activeTab]);
 
   return (
-    <div className="bg-white rounded-t-3xl md:rounded-3xl shadow-sm border border-slate-200 overflow-hidden flex flex-col min-h-[100vh] md:min-h-[80vh] relative">
+    <div className="bg-slate-100 flex flex-col min-h-screen relative">
       
-      {/* Contenido */}
-      <div className="flex-1 p-4 md:p-8 bg-slate-50/50 pb-28 md:pb-8">
+      <div className="flex-1 p-4 md:p-8 pb-32 md:pb-24 max-w-7xl mx-auto w-full">
         {activeTab === 'live' && <AdminLiveView submissions={submissions} />}
-        {activeTab === 'stores' && <CatalogManager title="Farmacias" col="inv_stores" data={stores} fields={[{k: 'name', l: 'Nombre'}, {k: 'address', l: 'Dirección'}, {k: 'assignedTo', l: 'Vendedor'}]} getRef={getCollectionRef} getDoc={getDocRef} />}
+        {activeTab === 'stores' && <CatalogManager title="Farmacias" col="inv_stores" data={stores} fields={[{k: 'name', l: 'Nombre'}, {k: 'address', l: 'Dirección'}, {k: 'assignedTo', l: 'Vendedor', type: 'select', opts: users.filter(u=>u.role==='rep').map(u=>u.name)}]} getRef={getCollectionRef} getDoc={getDocRef} />}
         {activeTab === 'products' && <CatalogManager title="Productos" col="inv_products" data={products} fields={[{k: 'name', l: 'Producto'}, {k: 'barcode', l: 'Cód. Barras'}]} getRef={getCollectionRef} getDoc={getDocRef} />}
-        {activeTab === 'users' && <CatalogManager title="Personal" col="inv_users" data={users} fields={[{k: 'name', l: 'Nombre'}, {k: 'role', l: 'Rol (admin/rep)'}, {k: 'password', l: 'Clave'}]} getRef={getCollectionRef} getDoc={getDocRef} />}
+        {activeTab === 'users' && <CatalogManager title="Equipo" col="inv_users" data={users} fields={[{k: 'name', l: 'Nombre'}, {k: 'role', l: 'Rol', type: 'select', opts: ['admin', 'rep']}, {k: 'password', l: 'Clave'}]} getRef={getCollectionRef} getDoc={getDocRef} />}
       </div>
 
-      {/* SOLUCIÓN PUNTO 10: Barra inferior verdaderamente fija en móviles */}
-      <div className="fixed md:absolute bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-2 md:p-3 flex justify-around items-center shadow-[0_-10px_30px_rgba(0,0,0,0.05)] z-50">
-        <TabButton icon={<LayoutDashboard size={20}/>} label="En Vivo" active={activeTab === 'live'} onClick={() => setActiveTab('live')} />
-        <TabButton icon={<Store size={20}/>} label="Rutas" active={activeTab === 'stores'} onClick={() => setActiveTab('stores')} />
-        <TabButton icon={<Package size={20}/>} label="Stock" active={activeTab === 'products'} onClick={() => setActiveTab('products')} />
+      {/* BARRA INFERIOR FIJA */}
+      <div className="fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 p-2 md:p-3 flex justify-around items-center shadow-[0_-5px_20px_rgba(0,0,0,0.05)] z-50 safe-area-pb">
+        <TabButton icon={<LayoutDashboard size={20}/>} label="Inventario" active={activeTab === 'live'} onClick={() => setActiveTab('live')} />
+        <TabButton icon={<Store size={20}/>} label="Farmacias" active={activeTab === 'stores'} onClick={() => setActiveTab('stores')} />
+        <TabButton icon={<Package size={20}/>} label="Productos" active={activeTab === 'products'} onClick={() => setActiveTab('products')} />
         <TabButton icon={<Users size={20}/>} label="Equipo" active={activeTab === 'users'} onClick={() => setActiveTab('users')} />
       </div>
     </div>
@@ -588,54 +616,95 @@ function AdminDashboard({ submissions, stores, products, users, getCollectionRef
 
 function TabButton({ icon, label, active, onClick }) {
   return (
-    <button onClick={onClick} className={`flex flex-col items-center gap-1 p-2 w-16 md:w-24 rounded-2xl transition-all ${active ? 'text-indigo-700' : 'text-slate-400 hover:text-slate-600'}`}>
+    <button onClick={onClick} className={`flex flex-col items-center gap-1 p-2 w-20 rounded-2xl transition-all ${active ? 'text-indigo-700' : 'text-slate-400 hover:text-slate-600'}`}>
       <div className={`${active ? 'bg-indigo-100 p-2 rounded-xl scale-110 shadow-sm' : 'p-2'}`}>{icon}</div>
-      <span className="text-[10px] md:text-xs font-bold">{label}</span>
+      <span className="text-[10px] md:text-xs font-bold truncate w-full text-center">{label}</span>
     </button>
   );
 }
 
-// --- VISTA EN VIVO CON FILTROS DESPLEGABLES Y DETALLE (Puntos 9 y 12) ---
+// --- VISTA INVENTARIO (AGRUPADO POR FARMACIA Y DÍA) ---
 function AdminLiveView({ submissions }) {
   const [filterStore, setFilterStore] = useState('');
   const [filterRep, setFilterRep] = useState('');
   const [filterDate, setFilterDate] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedSub, setSelectedSub] = useState(null); // Para el desglose
+  const [selectedGroup, setSelectedGroup] = useState(null); 
 
-  // SOLUCIÓN PUNTO 9: Listas únicas para los Selects
-  const uniqueStores = [...new Set(submissions.map(s => s.storeName))].filter(Boolean);
-  const uniqueReps = [...new Set(submissions.map(s => s.repName))].filter(Boolean);
-  const uniqueDates = [...new Set(submissions.map(s => new Date(s.timestamp).toISOString().split('T')[0]))].filter(Boolean);
+  // Agrupamiento Lógico por Tienda y Día (Req 1)
+  const groupedData = useMemo(() => {
+    const groups = {};
+    submissions.forEach(sub => {
+      const dateStr = new Date(sub.timestamp).toLocaleDateString();
+      const key = `${sub.storeId}-${dateStr}`;
+      
+      if (!groups[key]) {
+        groups[key] = {
+          id: key,
+          storeName: sub.storeName,
+          reps: new Set(),
+          dateStr: dateStr,
+          timestamp: sub.timestamp,
+          itemsMap: {}
+        };
+      }
+      groups[key].reps.add(sub.repName);
+      if (sub.timestamp > groups[key].timestamp) groups[key].timestamp = sub.timestamp; // Guarda la hora más reciente
 
-  const filteredData = submissions.filter(sub => {
-    const matchStore = filterStore ? sub.storeName === filterStore : true;
-    const matchRep = filterRep ? sub.repName === filterRep : true;
-    const matchDate = filterDate ? new Date(sub.timestamp).toISOString().split('T')[0] === filterDate : true;
+      sub.items.forEach(item => {
+        if (!groups[key].itemsMap[item.productId]) {
+          groups[key].itemsMap[item.productId] = { ...item };
+        } else {
+          groups[key].itemsMap[item.productId].quantity += item.quantity;
+        }
+      });
+    });
+
+    return Object.values(groups).map(g => ({
+      ...g,
+      repNames: Array.from(g.reps).join(', '),
+      items: Object.values(g.itemsMap)
+    })).sort((a,b) => b.timestamp - a.timestamp);
+  }, [submissions]);
+
+  const uniqueStores = [...new Set(groupedData.map(s => s.storeName))].filter(Boolean);
+  const uniqueDates = [...new Set(groupedData.map(s => s.dateStr))].filter(Boolean);
+
+  const filteredData = groupedData.filter(g => {
+    const matchStore = filterStore ? g.storeName === filterStore : true;
+    const matchRep = filterRep ? g.repNames.includes(filterRep) : true;
+    const matchDate = filterDate ? new Date(g.timestamp).toISOString().split('T')[0] === filterDate : true;
     return matchStore && matchRep && matchDate;
   });
 
   const activeFiltersCount = (filterStore ? 1 : 0) + (filterRep ? 1 : 0) + (filterDate ? 1 : 0);
 
-  // VISTA DE DETALLE (PUNTO 12)
-  if (selectedSub) {
+  const handleSelectGroup = (group) => {
+    setSelectedGroup(group);
+    window.scrollTo({ top: 0, behavior: 'smooth' }); // Req 2
+  };
+
+  if (selectedGroup) {
     return (
-      <div className="space-y-6 animate-fade-in">
-        <button onClick={() => setSelectedSub(null)} className="flex items-center gap-2 text-indigo-600 font-bold bg-indigo-50 px-4 py-2 rounded-xl w-fit hover:bg-indigo-100">
-          <ChevronLeft size={18} /> Volver al resumen
+      <div className="space-y-6 animate-fade-in max-w-3xl mx-auto">
+        <button onClick={() => setSelectedGroup(null)} className="flex items-center gap-2 text-indigo-600 font-bold bg-indigo-50 px-4 py-2.5 rounded-xl w-fit hover:bg-indigo-100 transition-colors shadow-sm">
+          <ChevronLeft size={18} /> Volver a Inventario
         </button>
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
-          <h2 className="text-2xl font-black text-slate-900 mb-4">{selectedSub.storeName}</h2>
-          <div className="flex flex-wrap gap-4 mb-6">
-            <span className="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-2"><Users size={16}/> {selectedSub.repName}</span>
-            <span className="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-2"><LayoutDashboard size={16}/> {new Date(selectedSub.timestamp).toLocaleString()}</span>
+          <div className="mb-6 border-b border-slate-100 pb-4">
+            <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest bg-indigo-50 px-2 py-1 rounded-md mb-2 inline-block">Reporte Consolidado</span>
+            <h2 className="text-3xl font-black text-slate-900 leading-tight mb-3">{selectedGroup.storeName}</h2>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <span className="bg-slate-100 text-slate-700 px-3 py-2 rounded-xl text-sm font-bold flex items-center gap-2"><Users size={16} className="text-slate-400"/> {selectedGroup.repNames}</span>
+              <span className="bg-slate-100 text-slate-700 px-3 py-2 rounded-xl text-sm font-bold flex items-center gap-2"><LayoutDashboard size={16} className="text-slate-400"/> {selectedGroup.dateStr}</span>
+            </div>
           </div>
-          <h3 className="font-bold text-slate-400 uppercase tracking-widest text-xs mb-3">Productos Escaneados</h3>
+          <h3 className="font-bold text-slate-400 uppercase tracking-widest text-xs mb-3 ml-1">Desglose de Productos</h3>
           <div className="space-y-2">
-            {selectedSub.items.map((item, idx) => (
-              <div key={idx} className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-100">
+            {selectedGroup.items.map((item, idx) => (
+              <div key={idx} className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-slate-100 hover:border-indigo-100 transition-colors">
                 <span className="font-bold text-slate-800">{item.productName}</span>
-                <span className="font-black text-indigo-700 bg-indigo-100 px-3 py-1 rounded-lg">Cant: {item.quantity}</span>
+                <span className="font-black text-indigo-700 bg-indigo-100 px-3 py-1.5 rounded-lg border border-indigo-200">Cant: {item.quantity}</span>
               </div>
             ))}
           </div>
@@ -644,83 +713,75 @@ function AdminLiveView({ submissions }) {
     );
   }
 
-  // VISTA RESUMEN GENERAL
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-3xl shadow-sm border border-slate-200">
+    <div className="space-y-6 max-w-5xl mx-auto">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
         <div>
-          <h2 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">Actividad Reciente</h2>
-          <p className="text-sm text-slate-500 font-medium">Toca un registro para ver el detalle de productos.</p>
+          <h2 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">Inventario Global</h2>
+          <p className="text-sm text-slate-500 font-medium">Reportes agrupados por farmacia y día.</p>
         </div>
-        <div className="flex gap-2 w-full sm:w-auto">
-          <button onClick={() => setShowFilters(!showFilters)} className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold transition-all border ${showFilters || activeFiltersCount > 0 ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-slate-200 text-slate-600'}`}>
+        <div className="w-full sm:w-auto">
+          <button onClick={() => setShowFilters(!showFilters)} className={`w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold transition-all border ${showFilters || activeFiltersCount > 0 ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 shadow-sm'}`}>
             <Filter size={18} /> Filtros {activeFiltersCount > 0 && <span className="bg-indigo-600 text-white w-5 h-5 rounded-full text-xs flex items-center justify-center">{activeFiltersCount}</span>}
           </button>
         </div>
       </div>
 
       {showFilters && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white p-5 rounded-3xl border border-slate-200 shadow-sm animate-fade-in-up">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm animate-fade-in-up">
           <div>
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Farmacia</label>
-            <select value={filterStore} onChange={e => setFilterStore(e.target.value)} className="w-full p-3 border border-slate-200 bg-slate-50 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
-              <option value="">Todas las farmacias</option>
+            <select value={filterStore} onChange={e => setFilterStore(e.target.value)} className="w-full p-3.5 border border-slate-200 bg-slate-50 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="">Todas</option>
               {uniqueStores.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Vendedor</label>
-            <select value={filterRep} onChange={e => setFilterRep(e.target.value)} className="w-full p-3 border border-slate-200 bg-slate-50 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
-              <option value="">Todos los vendedores</option>
-              {uniqueReps.map(r => <option key={r} value={r}>{r}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Fecha</label>
-            <select value={filterDate} onChange={e => setFilterDate(e.target.value)} className="w-full p-3 border border-slate-200 bg-slate-50 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
-              <option value="">Cualquier fecha</option>
-              {uniqueDates.map(d => <option key={d} value={d}>{d}</option>)}
-            </select>
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Fecha Exacta</label>
+            <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} className="w-full p-3.5 border border-slate-200 bg-slate-50 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500" />
           </div>
         </div>
       )}
 
-      {/* SOLUCIÓN PUNTO 6 y 12: Tarjetas Resumen en Móvil, Tabla en Desktop */}
-      <div className="grid grid-cols-1 md:hidden gap-3">
-        {filteredData.length === 0 ? <p className="text-center p-10 font-bold text-slate-400">Sin registros.</p> : (
-          filteredData.map(sub => (
-            <div key={sub.id} onClick={() => setSelectedSub(sub)} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col gap-3 active:scale-95 transition-transform">
-              <div className="flex justify-between items-start">
-                <h3 className="font-black text-slate-900 leading-tight">{sub.storeName}</h3>
-                <span className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded-md text-xs font-bold shrink-0">{sub.items.length} items</span>
+      {/* Tarjetas en Móvil (Mejoradas, Req 7) */}
+      <div className="grid grid-cols-1 md:hidden gap-4">
+        {filteredData.length === 0 ? <p className="text-center p-10 font-bold text-slate-400 bg-white rounded-3xl">Sin registros.</p> : (
+          filteredData.map(group => (
+            <div key={group.id} onClick={() => handleSelectGroup(group)} className="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 flex flex-col gap-3 active:scale-95 transition-transform">
+              <div className="flex justify-between items-start gap-2">
+                <h3 className="font-black text-slate-900 leading-tight text-lg">{group.storeName}</h3>
+                <span className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded-lg text-xs font-black shrink-0">{group.items.length} items</span>
               </div>
-              <div className="flex justify-between items-center mt-2 border-t border-slate-100 pt-3">
-                <span className="text-sm font-bold text-slate-600 flex items-center gap-1"><Users size={14}/> {sub.repName}</span>
-                <span className="text-xs font-bold text-slate-400">{new Date(sub.timestamp).toLocaleDateString()}</span>
+              <div className="flex flex-col gap-1 mt-1">
+                <span className="text-sm font-bold text-slate-600 flex items-center gap-2"><Users size={14} className="text-slate-400"/> {group.repNames}</span>
+                <span className="text-sm font-bold text-slate-600 flex items-center gap-2"><LayoutDashboard size={14} className="text-slate-400"/> {group.dateStr}</span>
               </div>
             </div>
           ))
         )}
       </div>
 
+      {/* Tabla en Escritorio */}
       <div className="hidden md:block border border-slate-200 rounded-3xl overflow-hidden shadow-sm bg-white">
         <table className="w-full text-left border-collapse text-sm">
           <thead>
             <tr className="bg-slate-50 text-slate-500 border-b border-slate-200">
-              <th className="p-4 font-bold uppercase text-xs">Fecha / Hora</th>
-              <th className="p-4 font-bold uppercase text-xs">Vendedor</th>
-              <th className="p-4 font-bold uppercase text-xs">Farmacia</th>
-              <th className="p-4 font-bold uppercase text-xs">Acción</th>
+              <th className="p-5 font-bold uppercase text-xs">Fecha</th>
+              <th className="p-5 font-bold uppercase text-xs">Farmacia</th>
+              <th className="p-5 font-bold uppercase text-xs">Personal</th>
+              <th className="p-5 font-bold uppercase text-xs text-center">Productos</th>
+              <th className="p-5"></th>
             </tr>
           </thead>
           <tbody>
-            {filteredData.length === 0 ? <tr><td colSpan="4" className="p-10 text-center font-bold text-slate-400">Sin registros.</td></tr> : (
-              filteredData.map(sub => (
-                <tr key={sub.id} className="border-b border-slate-100 hover:bg-slate-50">
-                  <td className="p-4"><div className="font-bold text-slate-800">{new Date(sub.timestamp).toLocaleDateString()}</div><div className="text-xs text-slate-400">{new Date(sub.timestamp).toLocaleTimeString()}</div></td>
-                  <td className="p-4 font-bold text-slate-700">{sub.repName}</td>
-                  <td className="p-4 font-bold text-slate-900">{sub.storeName}</td>
-                  <td className="p-4"><button onClick={() => setSelectedSub(sub)} className="bg-indigo-50 text-indigo-600 font-bold px-4 py-2 rounded-xl hover:bg-indigo-100 transition-colors">Ver Detalles ({sub.items.length})</button></td>
+            {filteredData.length === 0 ? <tr><td colSpan="5" className="p-10 text-center font-bold text-slate-400">Sin registros.</td></tr> : (
+              filteredData.map(group => (
+                <tr key={group.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                  <td className="p-5 font-bold text-slate-800">{group.dateStr}</td>
+                  <td className="p-5 font-black text-slate-900">{group.storeName}</td>
+                  <td className="p-5 font-bold text-slate-600">{group.repNames}</td>
+                  <td className="p-5 text-center"><span className="bg-slate-100 font-black text-slate-700 px-3 py-1 rounded-lg">{group.items.length}</span></td>
+                  <td className="p-5 text-right"><button onClick={() => handleSelectGroup(group)} className="bg-indigo-50 text-indigo-600 font-bold px-4 py-2 rounded-xl hover:bg-indigo-100 transition-colors">Ver Detalles</button></td>
                 </tr>
               ))
             )}
@@ -731,13 +792,18 @@ function AdminLiveView({ submissions }) {
   );
 }
 
-// --- GESTOR DE CATÁLOGOS (TARJETAS EN MÓVIL) ---
+// --- GESTOR DE CATÁLOGOS CON FILTROS INTELIGENTES (Req 7 y 8) ---
 function CatalogManager({ title, col, data, fields, getRef, getDoc }) {
   const [formData, setFormData] = useState({});
   const [editingId, setEditingId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterDropdown, setFilterDropdown] = useState({});
 
-  const filteredData = data.filter(item => Object.values(item).some(val => String(val).toLowerCase().includes(searchTerm.toLowerCase())));
+  const filteredData = data.filter(item => {
+    const matchesSearch = Object.values(item).some(val => String(val).toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesDrops = fields.filter(f => f.type === 'select').every(f => !filterDropdown[f.k] || item[f.k] === filterDropdown[f.k]);
+    return matchesSearch && matchesDrops;
+  });
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -751,48 +817,65 @@ function CatalogManager({ title, col, data, fields, getRef, getDoc }) {
   const handleEdit = (item) => { setFormData(item); setEditingId(item.id); };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-5 rounded-3xl shadow-sm border border-slate-200">
-        <div><h2 className="text-2xl font-black text-slate-900">{title}</h2></div>
+    <div className="space-y-6 max-w-6xl mx-auto">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+        <h2 className="text-2xl md:text-3xl font-black text-slate-900">{title}</h2>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm h-fit">
+        {/* Formulario de Creación/Edición */}
+        <div className="lg:col-span-1 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm h-fit sticky top-24">
           <h3 className="font-black text-slate-800 mb-5">{editingId ? 'Editando Registro' : 'Nuevo Registro'}</h3>
           <form onSubmit={handleSave} className="space-y-4">
             {fields.map(f => (
               <div key={f.k}>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{f.l}</label>
-                <input type="text" required value={formData[f.k] || ''} onChange={e => setFormData({...formData, [f.k]: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-slate-800 bg-slate-50" />
+                {f.type === 'select' ? (
+                  <select required value={formData[f.k] || ''} onChange={e => setFormData({...formData, [f.k]: e.target.value})} className="w-full p-3.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-slate-800 bg-slate-50">
+                    <option value="">Seleccione...</option>
+                    {f.opts.map(o => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                ) : (
+                  <input type="text" required value={formData[f.k] || ''} onChange={e => setFormData({...formData, [f.k]: e.target.value})} className="w-full p-3.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-slate-800 bg-slate-50" />
+                )}
               </div>
             ))}
             <div className="flex gap-3 pt-2">
-              <button type="submit" className="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700">{editingId ? 'Actualizar' : 'Guardar'}</button>
-              {editingId && <button type="button" onClick={() => {setEditingId(null); setFormData({});}} className="px-5 bg-slate-100 text-slate-600 py-3 rounded-xl font-bold">Cancelar</button>}
+              <button type="submit" className="flex-1 bg-indigo-600 text-white py-3.5 rounded-xl font-bold hover:bg-indigo-700 shadow-md">{editingId ? 'Actualizar' : 'Guardar'}</button>
+              {editingId && <button type="button" onClick={() => {setEditingId(null); setFormData({});}} className="px-5 bg-slate-100 text-slate-600 py-3.5 rounded-xl font-bold hover:bg-slate-200">Cancelar</button>}
             </div>
           </form>
         </div>
 
+        {/* Lista y Filtros */}
         <div className="lg:col-span-2 flex flex-col gap-4">
-          <div className="relative">
-            <Search className="absolute left-4 top-3.5 text-slate-400" size={18} />
-            <input type="text" placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold shadow-sm" />
+          <div className="bg-white p-4 rounded-3xl shadow-sm border border-slate-200 flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-4 top-3.5 text-slate-400" size={18} />
+              <input type="text" placeholder="Búsqueda rápida..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold" />
+            </div>
+            {fields.filter(f => f.type === 'select').map(f => (
+              <select key={`filter-${f.k}`} value={filterDropdown[f.k] || ''} onChange={(e) => setFilterDropdown({...filterDropdown, [f.k]: e.target.value})} className="sm:w-48 p-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="">Todo {f.l}</option>
+                {f.opts.map(o => <option key={`opt-${o}`} value={o}>{o}</option>)}
+              </select>
+            ))}
           </div>
 
-          {/* Versión Móvil: Tarjetas (PUNTO 6) */}
+          {/* Versión Móvil: Tarjetas (Compactas, Req 7) */}
           <div className="grid grid-cols-1 md:hidden gap-3">
-            {filteredData.length === 0 ? <p className="text-center p-10 font-bold text-slate-400">Sin datos.</p> : (
+            {filteredData.length === 0 ? <p className="text-center p-10 font-bold text-slate-400 bg-white rounded-3xl">Sin datos.</p> : (
               filteredData.map(item => (
-                <div key={item.id} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+                <div key={item.id} className="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 flex flex-col gap-2">
                   {fields.map(f => (
-                    <div key={f.k} className="mb-2">
-                      <span className="text-[10px] uppercase font-bold text-slate-400 block">{f.l}</span>
-                      <span className="font-bold text-slate-800">{f.k === 'password' ? '••••••••' : item[f.k]}</span>
+                    <div key={f.k} className="flex justify-between items-center border-b border-slate-50 pb-2 last:border-0 last:pb-0">
+                      <span className="text-[10px] uppercase font-bold text-slate-400">{f.l}</span>
+                      <span className="font-bold text-slate-800 text-right truncate max-w-[65%]">{f.k === 'password' ? '••••••••' : item[f.k]}</span>
                     </div>
                   ))}
-                  <div className="flex justify-end gap-2 mt-4 pt-3 border-t border-slate-100">
-                    <button onClick={() => handleEdit(item)} className="text-indigo-600 font-bold bg-indigo-50 px-4 py-2 rounded-xl">Editar</button>
-                    <button onClick={() => handleDelete(item.id)} className="text-rose-500 font-bold bg-rose-50 p-2 rounded-xl"><Trash2 size={18}/></button>
+                  <div className="flex justify-end gap-2 mt-3 pt-3 border-t border-slate-100">
+                    <button onClick={() => handleEdit(item)} className="text-indigo-600 font-bold bg-indigo-50 px-5 py-2 rounded-xl">Editar</button>
+                    <button onClick={() => handleDelete(item.id)} className="text-rose-500 font-bold bg-rose-50 p-2.5 rounded-xl"><Trash2 size={18}/></button>
                   </div>
                 </div>
               ))
@@ -802,14 +885,14 @@ function CatalogManager({ title, col, data, fields, getRef, getDoc }) {
           {/* Versión Desktop: Tabla */}
           <div className="hidden md:block border border-slate-200 rounded-3xl overflow-hidden shadow-sm bg-white">
             <table className="w-full text-left border-collapse text-sm">
-              <thead><tr className="bg-slate-50 text-slate-500 border-b border-slate-200">{fields.map(f => <th key={f.k} className="p-4 font-bold uppercase text-xs">{f.l}</th>)}<th className="p-4"></th></tr></thead>
+              <thead><tr className="bg-slate-50 text-slate-500 border-b border-slate-200">{fields.map(f => <th key={f.k} className="p-5 font-bold uppercase text-xs">{f.l}</th>)}<th className="p-5"></th></tr></thead>
               <tbody>
                 {filteredData.map(item => (
                   <tr key={item.id} className="border-b border-slate-50 hover:bg-slate-50">
-                    {fields.map(f => <td key={f.k} className="p-4 font-bold text-slate-700">{f.k === 'password' ? '••••••••' : item[f.k]}</td>)}
-                    <td className="p-4 flex justify-end gap-2">
-                      <button onClick={() => handleEdit(item)} className="text-indigo-600 font-bold bg-indigo-50 px-3 py-1.5 rounded-lg">Editar</button>
-                      <button onClick={() => handleDelete(item.id)} className="text-rose-500 bg-rose-50 p-1.5 rounded-lg"><Trash2 size={18}/></button>
+                    {fields.map(f => <td key={f.k} className="p-5 font-bold text-slate-700">{f.k === 'password' ? '••••••••' : item[f.k]}</td>)}
+                    <td className="p-5 flex justify-end gap-2">
+                      <button onClick={() => handleEdit(item)} className="text-indigo-600 font-bold bg-indigo-50 px-4 py-2 rounded-xl">Editar</button>
+                      <button onClick={() => handleDelete(item.id)} className="text-rose-500 bg-rose-50 p-2 rounded-xl"><Trash2 size={18}/></button>
                     </td>
                   </tr>
                 ))}

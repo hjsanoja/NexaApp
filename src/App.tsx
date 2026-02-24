@@ -1,12 +1,12 @@
 // @ts-nocheck
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, addDoc, updateDoc } from 'firebase/firestore';
 import { Camera, Search, Plus, Trash2, Download, LogOut, Users, Store, Package, LayoutDashboard, FileUp, X, Check, AlertCircle, ScanLine, Boxes, Lock, ChevronLeft, Eye, EyeOff, Filter, ChevronRight, ClipboardList, ListPlus } from 'lucide-react';
 
 // --- VERSIÓN DE LA APP ---
-const APP_VERSION = "v1.5.0";
+const APP_VERSION = "v1.6.0";
 
 // --- INICIALIZACIÓN DE FIREBASE ---
 const myFirebaseConfig = {
@@ -148,7 +148,6 @@ function MainApp() {
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col font-sans text-slate-900 selection:bg-indigo-500 selection:text-white">
-      {/* Header (Centrado y Ajustado) */}
       <header className="bg-indigo-700 text-white p-4 shadow-md sticky top-0 z-40">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-4">
@@ -169,7 +168,6 @@ function MainApp() {
         </div>
       </header>
 
-      {/* Área Principal (Con padding bottom para asegurar que la barra fija no tape contenido) */}
       <main className="flex-1 w-full max-w-7xl mx-auto p-0 md:p-4 pb-28 md:pb-6 relative">
         {systemError && (
           <div className="m-4 mb-2 md:m-0 md:mb-6 bg-rose-50 text-rose-800 p-4 rounded-2xl shadow-sm flex items-start gap-3 border border-rose-200">
@@ -355,15 +353,20 @@ function RepApp({ profile, stores, products, getCollectionRef }) {
   );
 }
 
-// --- FORMULARIO DE INVENTARIO (CON ESCANEO CONTINUO) ---
+// --- FORMULARIO DE INVENTARIO ---
 function InventoryForm({ store, products, profile, getCollectionRef, onBack }) {
   const [items, setItems] = useState([]); 
   const [searchTerm, setSearchTerm] = useState('');
   const [showScanner, setShowScanner] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [scanToast, setScanToast] = useState(null); // Feedback visual del escáner continuo
+  const [scanToast, setScanToast] = useState(null); 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('catalog'); 
+  const toastTimer = useRef(null);
+  const itemsRef = useRef(items);
+
+  // Mantener una referencia a los items actuales para que el escáner continuo no lea datos viejos
+  useEffect(() => { itemsRef.current = items; }, [items]);
 
   const filteredProducts = products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()) || (p.barcode && p.barcode.includes(searchTerm)));
 
@@ -397,21 +400,31 @@ function InventoryForm({ store, products, profile, getCollectionRef, onBack }) {
     } catch (err) { setErrorMsg("Error de red al guardar."); setIsSubmitting(false); }
   };
 
-  // Función modificada para escaneo continuo
+  // Función mejorada y estabilizada para Escaneo Continuo Ultra Rápido (Bugs 1 y 2)
   const onScanContinuous = (decodedText) => {
     const found = products.find(p => p.barcode === decodedText);
+    
     if (found) {
+      // 1. Usar itemsRef asegura que el cálculo sea siempre 100% exacto aunque React no haya repintado aún
+      const existingItem = itemsRef.current.find(i => i.product.id === found.id);
+      const newTotal = existingItem ? existingItem.qty + 1 : 1;
+
+      // 2. Actualizar el estado
       setItems(prev => {
         const exists = prev.find(i => i.product.id === found.id);
-        if (exists) return prev.map(i => i.product.id === found.id ? { ...i, qty: i.qty + 1 } : i);
+        if (exists) return prev.map(i => i.product.id === found.id ? { ...i, qty: exists.qty + 1 } : i);
         return [{ product: found, qty: 1 }, ...prev];
       });
-      setScanToast({ type: 'success', text: `+1 ${found.name}` });
+
+      // 3. Mostrar el Toast informando la cantidad EXACTA que lleva acumulada
+      setScanToast({ type: 'success', text: `+1 ${found.name} (Llevas: ${newTotal})`, id: Date.now() });
     } else {
-      setScanToast({ type: 'error', text: `Código no existe` });
+      setScanToast({ type: 'error', text: `Código no existe`, id: Date.now() });
     }
-    // Ocultar mensaje luego de 2 segundos
-    setTimeout(() => setScanToast(null), 2000);
+
+    // 4. Limpiar el timeout anterior de forma segura (Previene el congelamiento)
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setScanToast(null), 2000);
   };
 
   return (
@@ -535,12 +548,11 @@ function BarcodeScannerModal({ onClose, onScan, scanToast }) {
       
       const successCb = (text) => { 
         const now = Date.now();
-        // Evitar escanear el MISMO código repetidamente en menos de 2.5 segundos
-        if (text === lastScan && now - lastTime < 2500) return;
+        // Reducido a 1 segundo: ¡Permite ráfagas rápidas de códigos sin congelarse!
+        if (text === lastScan && now - lastTime < 1000) return;
         lastScan = text;
         lastTime = now;
         onScan(text); 
-        // ¡NO DETENEMOS EL ESCÁNER PARA PERMITIR MÚLTIPLES LECTURAS!
       };
 
       try {
@@ -563,13 +575,12 @@ function BarcodeScannerModal({ onClose, onScan, scanToast }) {
   return (
     <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-sm z-50 flex flex-col">
       <div className="p-4 flex justify-between items-center text-white">
-        <h3 className="font-bold">Escanear (Múltiple)</h3>
+        <h3 className="font-bold">Escanear Rápido</h3>
         <button onClick={onClose} className="p-2 bg-white/20 rounded-full"><X size={20} /></button>
       </div>
       <div className="flex-1 flex items-center justify-center p-6 relative">
-        {/* Toast Flotante de Escaneo Exitoso */}
         {scanToast && (
-          <div className={`absolute top-10 z-50 px-6 py-3 rounded-full shadow-2xl font-black text-lg animate-fade-in ${scanToast.type === 'success' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
+          <div key={scanToast.id} className={`absolute top-10 z-50 px-6 py-3 rounded-full shadow-2xl font-black text-lg animate-fade-in ${scanToast.type === 'success' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
             {scanToast.text}
           </div>
         )}
@@ -581,7 +592,7 @@ function BarcodeScannerModal({ onClose, onScan, scanToast }) {
         )}
       </div>
       <div className="p-8 text-center text-slate-300 font-medium text-sm">
-        Mantenga la cámara abierta. <br/>Puede escanear varios productos seguidos.
+        Escaneo continuo activado.<br/>Pase los códigos frente a la cámara.
       </div>
     </div>
   );
@@ -595,15 +606,13 @@ function AdminDashboard({ submissions, stores, products, users, getCollectionRef
 
   return (
     <div className="bg-slate-100 flex flex-col min-h-screen relative">
-      
-      <div className="flex-1 p-4 md:p-8 pb-32 md:pb-24 max-w-7xl mx-auto w-full">
+      <div className="flex-1 p-3 md:p-8 pb-32 md:pb-24 max-w-7xl mx-auto w-full">
         {activeTab === 'live' && <AdminLiveView submissions={submissions} />}
         {activeTab === 'stores' && <CatalogManager title="Farmacias" col="inv_stores" data={stores} fields={[{k: 'name', l: 'Nombre'}, {k: 'address', l: 'Dirección'}, {k: 'assignedTo', l: 'Vendedor', type: 'select', opts: users.filter(u=>u.role==='rep').map(u=>u.name)}]} getRef={getCollectionRef} getDoc={getDocRef} />}
         {activeTab === 'products' && <CatalogManager title="Productos" col="inv_products" data={products} fields={[{k: 'name', l: 'Producto'}, {k: 'barcode', l: 'Cód. Barras'}]} getRef={getCollectionRef} getDoc={getDocRef} />}
         {activeTab === 'users' && <CatalogManager title="Equipo" col="inv_users" data={users} fields={[{k: 'name', l: 'Nombre'}, {k: 'role', l: 'Rol', type: 'select', opts: ['admin', 'rep']}, {k: 'password', l: 'Clave'}]} getRef={getCollectionRef} getDoc={getDocRef} />}
       </div>
 
-      {/* BARRA INFERIOR FIJA */}
       <div className="fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 p-2 md:p-3 flex justify-around items-center shadow-[0_-5px_20px_rgba(0,0,0,0.05)] z-50 safe-area-pb">
         <TabButton icon={<LayoutDashboard size={20}/>} label="Inventario" active={activeTab === 'live'} onClick={() => setActiveTab('live')} />
         <TabButton icon={<Store size={20}/>} label="Farmacias" active={activeTab === 'stores'} onClick={() => setActiveTab('stores')} />
@@ -623,7 +632,7 @@ function TabButton({ icon, label, active, onClick }) {
   );
 }
 
-// --- VISTA INVENTARIO (AGRUPADO POR FARMACIA Y DÍA) ---
+// --- VISTA INVENTARIO ---
 function AdminLiveView({ submissions }) {
   const [filterStore, setFilterStore] = useState('');
   const [filterRep, setFilterRep] = useState('');
@@ -631,7 +640,6 @@ function AdminLiveView({ submissions }) {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState(null); 
 
-  // Agrupamiento Lógico por Tienda y Día (Req 1)
   const groupedData = useMemo(() => {
     const groups = {};
     submissions.forEach(sub => {
@@ -639,31 +647,19 @@ function AdminLiveView({ submissions }) {
       const key = `${sub.storeId}-${dateStr}`;
       
       if (!groups[key]) {
-        groups[key] = {
-          id: key,
-          storeName: sub.storeName,
-          reps: new Set(),
-          dateStr: dateStr,
-          timestamp: sub.timestamp,
-          itemsMap: {}
-        };
+        groups[key] = { id: key, storeName: sub.storeName, reps: new Set(), dateStr: dateStr, timestamp: sub.timestamp, itemsMap: {} };
       }
       groups[key].reps.add(sub.repName);
-      if (sub.timestamp > groups[key].timestamp) groups[key].timestamp = sub.timestamp; // Guarda la hora más reciente
+      if (sub.timestamp > groups[key].timestamp) groups[key].timestamp = sub.timestamp; 
 
       sub.items.forEach(item => {
-        if (!groups[key].itemsMap[item.productId]) {
-          groups[key].itemsMap[item.productId] = { ...item };
-        } else {
-          groups[key].itemsMap[item.productId].quantity += item.quantity;
-        }
+        if (!groups[key].itemsMap[item.productId]) groups[key].itemsMap[item.productId] = { ...item };
+        else groups[key].itemsMap[item.productId].quantity += item.quantity;
       });
     });
 
     return Object.values(groups).map(g => ({
-      ...g,
-      repNames: Array.from(g.reps).join(', '),
-      items: Object.values(g.itemsMap)
+      ...g, repNames: Array.from(g.reps).join(', '), items: Object.values(g.itemsMap)
     })).sort((a,b) => b.timestamp - a.timestamp);
   }, [submissions]);
 
@@ -679,21 +675,18 @@ function AdminLiveView({ submissions }) {
 
   const activeFiltersCount = (filterStore ? 1 : 0) + (filterRep ? 1 : 0) + (filterDate ? 1 : 0);
 
-  const handleSelectGroup = (group) => {
-    setSelectedGroup(group);
-    window.scrollTo({ top: 0, behavior: 'smooth' }); // Req 2
-  };
+  const handleSelectGroup = (group) => { setSelectedGroup(group); window.scrollTo({ top: 0, behavior: 'smooth' }); };
 
   if (selectedGroup) {
     return (
-      <div className="space-y-6 animate-fade-in max-w-3xl mx-auto">
+      <div className="space-y-4 animate-fade-in max-w-3xl mx-auto">
         <button onClick={() => setSelectedGroup(null)} className="flex items-center gap-2 text-indigo-600 font-bold bg-indigo-50 px-4 py-2.5 rounded-xl w-fit hover:bg-indigo-100 transition-colors shadow-sm">
           <ChevronLeft size={18} /> Volver a Inventario
         </button>
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+        <div className="bg-white p-5 md:p-6 rounded-3xl shadow-sm border border-slate-200">
           <div className="mb-6 border-b border-slate-100 pb-4">
             <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest bg-indigo-50 px-2 py-1 rounded-md mb-2 inline-block">Reporte Consolidado</span>
-            <h2 className="text-3xl font-black text-slate-900 leading-tight mb-3">{selectedGroup.storeName}</h2>
+            <h2 className="text-2xl md:text-3xl font-black text-slate-900 leading-tight mb-3">{selectedGroup.storeName}</h2>
             <div className="flex flex-col sm:flex-row gap-3">
               <span className="bg-slate-100 text-slate-700 px-3 py-2 rounded-xl text-sm font-bold flex items-center gap-2"><Users size={16} className="text-slate-400"/> {selectedGroup.repNames}</span>
               <span className="bg-slate-100 text-slate-700 px-3 py-2 rounded-xl text-sm font-bold flex items-center gap-2"><LayoutDashboard size={16} className="text-slate-400"/> {selectedGroup.dateStr}</span>
@@ -703,8 +696,8 @@ function AdminLiveView({ submissions }) {
           <div className="space-y-2">
             {selectedGroup.items.map((item, idx) => (
               <div key={idx} className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-slate-100 hover:border-indigo-100 transition-colors">
-                <span className="font-bold text-slate-800">{item.productName}</span>
-                <span className="font-black text-indigo-700 bg-indigo-100 px-3 py-1.5 rounded-lg border border-indigo-200">Cant: {item.quantity}</span>
+                <span className="font-bold text-slate-800 text-sm md:text-base">{item.productName}</span>
+                <span className="font-black text-indigo-700 bg-indigo-100 px-3 py-1.5 rounded-lg border border-indigo-200 text-sm">Cant: {item.quantity}</span>
               </div>
             ))}
           </div>
@@ -714,11 +707,11 @@ function AdminLiveView({ submissions }) {
   }
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+    <div className="space-y-4 max-w-5xl mx-auto">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 md:p-6 rounded-3xl shadow-sm border border-slate-200">
         <div>
-          <h2 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">Inventario Global</h2>
-          <p className="text-sm text-slate-500 font-medium">Reportes agrupados por farmacia y día.</p>
+          <h2 className="text-xl md:text-3xl font-black text-slate-900 tracking-tight">Inventario Global</h2>
+          <p className="text-xs md:text-sm text-slate-500 font-medium">Reportes agrupados por farmacia y día.</p>
         </div>
         <div className="w-full sm:w-auto">
           <button onClick={() => setShowFilters(!showFilters)} className={`w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold transition-all border ${showFilters || activeFiltersCount > 0 ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 shadow-sm'}`}>
@@ -728,23 +721,22 @@ function AdminLiveView({ submissions }) {
       </div>
 
       {showFilters && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm animate-fade-in-up">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-white p-5 rounded-3xl border border-slate-200 shadow-sm animate-fade-in-up">
           <div>
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Farmacia</label>
-            <select value={filterStore} onChange={e => setFilterStore(e.target.value)} className="w-full p-3.5 border border-slate-200 bg-slate-50 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
+            <select value={filterStore} onChange={e => setFilterStore(e.target.value)} className="w-full p-3 border border-slate-200 bg-slate-50 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
               <option value="">Todas</option>
               {uniqueStores.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Fecha Exacta</label>
-            <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} className="w-full p-3.5 border border-slate-200 bg-slate-50 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500" />
+            <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} className="w-full p-3 border border-slate-200 bg-slate-50 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500" />
           </div>
         </div>
       )}
 
-      {/* Tarjetas en Móvil (Mejoradas, Req 7) */}
-      <div className="grid grid-cols-1 md:hidden gap-4">
+      <div className="grid grid-cols-1 md:hidden gap-3">
         {filteredData.length === 0 ? <p className="text-center p-10 font-bold text-slate-400 bg-white rounded-3xl">Sin registros.</p> : (
           filteredData.map(group => (
             <div key={group.id} onClick={() => handleSelectGroup(group)} className="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 flex flex-col gap-3 active:scale-95 transition-transform">
@@ -761,7 +753,6 @@ function AdminLiveView({ submissions }) {
         )}
       </div>
 
-      {/* Tabla en Escritorio */}
       <div className="hidden md:block border border-slate-200 rounded-3xl overflow-hidden shadow-sm bg-white">
         <table className="w-full text-left border-collapse text-sm">
           <thead>
@@ -792,12 +783,13 @@ function AdminLiveView({ submissions }) {
   );
 }
 
-// --- GESTOR DE CATÁLOGOS CON FILTROS INTELIGENTES (Req 7 y 8) ---
+// --- GESTOR DE CATÁLOGOS CON FILTROS COMPACTOS Y FORMULARIO OCULTABLE EN MÓVIL (Bug 3 y 4) ---
 function CatalogManager({ title, col, data, fields, getRef, getDoc }) {
   const [formData, setFormData] = useState({});
   const [editingId, setEditingId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDropdown, setFilterDropdown] = useState({});
+  const [showForm, setShowForm] = useState(false); // Solución Bug 4: Ocultar form en móvil
 
   const filteredData = data.filter(item => {
     const matchesSearch = Object.values(item).some(val => String(val).toLowerCase().includes(searchTerm.toLowerCase()));
@@ -810,59 +802,70 @@ function CatalogManager({ title, col, data, fields, getRef, getDoc }) {
     try {
       if (editingId) await updateDoc(getDoc(col, editingId), formData);
       else await addDoc(getRef(col), formData);
-      setFormData({}); setEditingId(null);
+      setFormData({}); setEditingId(null); setShowForm(false);
     } catch (err) { alert("Error al guardar."); }
   };
+  
   const handleDelete = async (id) => { if(confirm('¿Eliminar registro?')) await deleteDoc(getDoc(col, id)); };
-  const handleEdit = (item) => { setFormData(item); setEditingId(item.id); };
+  
+  const handleEdit = (item) => { 
+    setFormData(item); setEditingId(item.id); 
+    setShowForm(true); // Abrir formulario al editar en móvil
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
-        <h2 className="text-2xl md:text-3xl font-black text-slate-900">{title}</h2>
+    <div className="space-y-4 max-w-6xl mx-auto">
+      
+      {/* Cabecera y Botón Nuevo (Móvil) */}
+      <div className="flex justify-between items-center bg-white p-5 lg:p-6 rounded-3xl shadow-sm border border-slate-200">
+        <h2 className="text-xl lg:text-3xl font-black text-slate-900">{title}</h2>
+        <button onClick={() => setShowForm(!showForm)} className="lg:hidden bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-1 shadow-sm">
+          {showForm ? <X size={16}/> : <Plus size={16}/>} {showForm ? 'Cerrar' : 'Nuevo'}
+        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Formulario de Creación/Edición */}
-        <div className="lg:col-span-1 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm h-fit sticky top-24">
+        
+        {/* Formulario de Creación/Edición (Ocultable en Móvil, Evita solapamiento) */}
+        <div className={`lg:col-span-1 bg-white p-5 lg:p-6 rounded-3xl border border-slate-200 shadow-sm h-fit lg:sticky lg:top-24 ${showForm ? 'block' : 'hidden lg:block'}`}>
           <h3 className="font-black text-slate-800 mb-5">{editingId ? 'Editando Registro' : 'Nuevo Registro'}</h3>
           <form onSubmit={handleSave} className="space-y-4">
             {fields.map(f => (
               <div key={f.k}>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{f.l}</label>
+                <label className="block text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{f.l}</label>
                 {f.type === 'select' ? (
-                  <select required value={formData[f.k] || ''} onChange={e => setFormData({...formData, [f.k]: e.target.value})} className="w-full p-3.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-slate-800 bg-slate-50">
+                  <select required value={formData[f.k] || ''} onChange={e => setFormData({...formData, [f.k]: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-slate-800 bg-slate-50">
                     <option value="">Seleccione...</option>
                     {f.opts.map(o => <option key={o} value={o}>{o}</option>)}
                   </select>
                 ) : (
-                  <input type="text" required value={formData[f.k] || ''} onChange={e => setFormData({...formData, [f.k]: e.target.value})} className="w-full p-3.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-slate-800 bg-slate-50" />
+                  <input type="text" required value={formData[f.k] || ''} onChange={e => setFormData({...formData, [f.k]: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-slate-800 bg-slate-50" />
                 )}
               </div>
             ))}
             <div className="flex gap-3 pt-2">
-              <button type="submit" className="flex-1 bg-indigo-600 text-white py-3.5 rounded-xl font-bold hover:bg-indigo-700 shadow-md">{editingId ? 'Actualizar' : 'Guardar'}</button>
-              {editingId && <button type="button" onClick={() => {setEditingId(null); setFormData({});}} className="px-5 bg-slate-100 text-slate-600 py-3.5 rounded-xl font-bold hover:bg-slate-200">Cancelar</button>}
+              <button type="submit" className="flex-1 bg-indigo-600 text-white py-3 rounded-xl text-sm font-bold hover:bg-indigo-700 shadow-md">{editingId ? 'Actualizar' : 'Guardar'}</button>
+              {editingId && <button type="button" onClick={() => {setEditingId(null); setFormData({}); setShowForm(false);}} className="px-5 bg-slate-100 text-slate-600 py-3 rounded-xl text-sm font-bold hover:bg-slate-200">Cancelar</button>}
             </div>
           </form>
         </div>
 
-        {/* Lista y Filtros */}
+        {/* Lista y Filtros COMPACTOS (Bug 3) */}
         <div className="lg:col-span-2 flex flex-col gap-4">
-          <div className="bg-white p-4 rounded-3xl shadow-sm border border-slate-200 flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-4 top-3.5 text-slate-400" size={18} />
-              <input type="text" placeholder="Búsqueda rápida..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold" />
+          <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
+              <input type="text" placeholder="Búsqueda rápida..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-bold" />
             </div>
             {fields.filter(f => f.type === 'select').map(f => (
-              <select key={`filter-${f.k}`} value={filterDropdown[f.k] || ''} onChange={(e) => setFilterDropdown({...filterDropdown, [f.k]: e.target.value})} className="sm:w-48 p-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
+              <select key={`filter-${f.k}`} value={filterDropdown[f.k] || ''} onChange={(e) => setFilterDropdown({...filterDropdown, [f.k]: e.target.value})} className="w-full sm:w-auto p-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
                 <option value="">Todo {f.l}</option>
                 {f.opts.map(o => <option key={`opt-${o}`} value={o}>{o}</option>)}
               </select>
             ))}
           </div>
 
-          {/* Versión Móvil: Tarjetas (Compactas, Req 7) */}
           <div className="grid grid-cols-1 md:hidden gap-3">
             {filteredData.length === 0 ? <p className="text-center p-10 font-bold text-slate-400 bg-white rounded-3xl">Sin datos.</p> : (
               filteredData.map(item => (
@@ -870,29 +873,28 @@ function CatalogManager({ title, col, data, fields, getRef, getDoc }) {
                   {fields.map(f => (
                     <div key={f.k} className="flex justify-between items-center border-b border-slate-50 pb-2 last:border-0 last:pb-0">
                       <span className="text-[10px] uppercase font-bold text-slate-400">{f.l}</span>
-                      <span className="font-bold text-slate-800 text-right truncate max-w-[65%]">{f.k === 'password' ? '••••••••' : item[f.k]}</span>
+                      <span className="font-bold text-slate-800 text-right truncate max-w-[65%] text-sm">{f.k === 'password' ? '••••••••' : item[f.k]}</span>
                     </div>
                   ))}
                   <div className="flex justify-end gap-2 mt-3 pt-3 border-t border-slate-100">
-                    <button onClick={() => handleEdit(item)} className="text-indigo-600 font-bold bg-indigo-50 px-5 py-2 rounded-xl">Editar</button>
-                    <button onClick={() => handleDelete(item.id)} className="text-rose-500 font-bold bg-rose-50 p-2.5 rounded-xl"><Trash2 size={18}/></button>
+                    <button onClick={() => handleEdit(item)} className="text-indigo-600 font-bold text-sm bg-indigo-50 px-5 py-2 rounded-xl">Editar</button>
+                    <button onClick={() => handleDelete(item.id)} className="text-rose-500 font-bold text-sm bg-rose-50 p-2.5 rounded-xl"><Trash2 size={16}/></button>
                   </div>
                 </div>
               ))
             )}
           </div>
 
-          {/* Versión Desktop: Tabla */}
           <div className="hidden md:block border border-slate-200 rounded-3xl overflow-hidden shadow-sm bg-white">
             <table className="w-full text-left border-collapse text-sm">
-              <thead><tr className="bg-slate-50 text-slate-500 border-b border-slate-200">{fields.map(f => <th key={f.k} className="p-5 font-bold uppercase text-xs">{f.l}</th>)}<th className="p-5"></th></tr></thead>
+              <thead><tr className="bg-slate-50 text-slate-500 border-b border-slate-200">{fields.map(f => <th key={f.k} className="p-4 font-bold uppercase text-xs">{f.l}</th>)}<th className="p-4"></th></tr></thead>
               <tbody>
                 {filteredData.map(item => (
                   <tr key={item.id} className="border-b border-slate-50 hover:bg-slate-50">
-                    {fields.map(f => <td key={f.k} className="p-5 font-bold text-slate-700">{f.k === 'password' ? '••••••••' : item[f.k]}</td>)}
-                    <td className="p-5 flex justify-end gap-2">
-                      <button onClick={() => handleEdit(item)} className="text-indigo-600 font-bold bg-indigo-50 px-4 py-2 rounded-xl">Editar</button>
-                      <button onClick={() => handleDelete(item.id)} className="text-rose-500 bg-rose-50 p-2 rounded-xl"><Trash2 size={18}/></button>
+                    {fields.map(f => <td key={f.k} className="p-4 font-bold text-slate-700">{f.k === 'password' ? '••••••••' : item[f.k]}</td>)}
+                    <td className="p-4 flex justify-end gap-2">
+                      <button onClick={() => handleEdit(item)} className="text-indigo-600 font-bold bg-indigo-50 px-3 py-1.5 rounded-lg">Editar</button>
+                      <button onClick={() => handleDelete(item.id)} className="text-rose-500 bg-rose-50 p-1.5 rounded-lg"><Trash2 size={18}/></button>
                     </td>
                   </tr>
                 ))}

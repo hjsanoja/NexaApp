@@ -6,12 +6,12 @@ import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, addDoc, u
 import { Camera, Search, Plus, Trash2, Download, LogOut, Users, Store, Package, LayoutDashboard, FileUp, X, Check, AlertCircle, ScanLine, Boxes, Lock, ChevronLeft, Eye, EyeOff, Filter, ChevronRight, ClipboardList, ListPlus, Edit3, History, DollarSign } from 'lucide-react';
 
 // --- VERSIÓN DE LA APP ---
-const APP_VERSION = "v1.7.2";
+const APP_VERSION = "v1.7.3";
 
 // --- INICIALIZACIÓN DE FIREBASE ---
 const myFirebaseConfig = {
   apiKey: "AIzaSyAHJuYAOVPAghEOQjlqO-ZdnGMi_sk9hmg",
-  authDomain: "[nexaapp-4f2f4.firebaseapp.com](http://nexaapp-4f2f4.firebaseapp.com/)",
+  authDomain: "nexaapp-4f2f4.firebaseapp.com",
   projectId: "nexaapp-4f2f4",
   storageBucket: "nexaapp-4f2f4.firebasestorage.app",
   messagingSenderId: "780963789506",
@@ -108,7 +108,7 @@ function MainApp() {
     else localStorage.removeItem('nexastock_profile');
   };
 
-  // Función para forzar la carga de datos reales (Expuesta en Login)
+  // Función para forzar la carga de datos reales (SOLO DISPONIBLE PARA ADMIN)
   const forceSyncRealData = async () => {
     if(!confirm('Esto borrará los usuarios, tiendas y productos actuales y cargará la base de datos oficial. ¿Continuar?')) return;
     try {
@@ -174,7 +174,7 @@ function MainApp() {
     </div>
   );
 
-  if (!profile) return <LoginScreen usersList={usersList} onSelectProfile={handleSetProfile} systemError={systemError} forceSyncRealData={forceSyncRealData} />;
+  if (!profile) return <LoginScreen usersList={usersList} onSelectProfile={handleSetProfile} systemError={systemError} />;
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col font-sans text-slate-900 selection:bg-indigo-500 selection:text-white">
@@ -217,7 +217,7 @@ function MainApp() {
 }
 
 // --- PANTALLA DE INICIO DE SESIÓN ---
-function LoginScreen({ usersList, onSelectProfile, systemError, forceSyncRealData }) {
+function LoginScreen({ usersList, onSelectProfile, systemError }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
   const [password, setPassword] = useState('');
@@ -321,12 +321,8 @@ function LoginScreen({ usersList, onSelectProfile, systemError, forceSyncRealDat
           )}
         </div>
         
-        {/* BOTÓN DE EMERGENCIA AÑADIDO AQUÍ */}
         <div className="text-center mt-6 flex flex-col items-center gap-3">
           <p className="text-slate-400 text-xs font-bold tracking-widest">VERSIÓN {APP_VERSION}</p>
-          <button onClick={forceSyncRealData} className="text-[11px] text-rose-600 font-black border-2 border-rose-200 bg-rose-50 px-4 py-2 rounded-xl hover:bg-rose-600 hover:text-white transition-colors shadow-sm flex items-center gap-2">
-            <AlertCircle size={14} /> Forzar Actualización de BD
-          </button>
         </div>
 
       </div>

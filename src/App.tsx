@@ -6,7 +6,7 @@ import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, addDoc, u
 import { Camera, Search, Plus, Trash2, Download, LogOut, Users, Store, Package, LayoutDashboard, FileUp, X, Check, AlertCircle, ScanLine, Boxes, Lock, ChevronLeft, Eye, EyeOff, Filter, ChevronRight, ClipboardList, ListPlus, Edit3, History, DollarSign } from 'lucide-react';
 
 // --- VERSIÓN DE LA APP ---
-const APP_VERSION = "v1.7.1";
+const APP_VERSION = "v1.7.2";
 
 // --- INICIALIZACIÓN DE FIREBASE ---
 const myFirebaseConfig = {
@@ -34,12 +34,12 @@ const appId = typeof __app_id !== 'undefined' && __app_id ? __app_id : 'default-
 // --- DATOS INICIALES REALES ---
 const REAL_USERS = [
   { id: 'admin_1', name: 'Admin Principal', role: 'admin', password: 'admin26' },
-  { id: 'rep_sofy', name: 'Sofy Hernandez', role: 'rep', password: 'sofy' },
-  { id: 'rep_daniel', name: 'Daniel Gil', role: 'rep', password: 'daniel' },
-  { id: 'rep_linyirubi', name: 'Linyirubi Vazquez', role: 'rep', password: 'linyirubi' },
-  { id: 'rep_tanya', name: 'Tanya Perez', role: 'rep', password: 'tanya' },
-  { id: 'rep_maria', name: 'Maria Celeste Diaz', role: 'rep', password: 'maria' },
-  { id: 'rep_francis', name: 'Francis Vásquez', role: 'rep', password: 'francis' }
+  { id: 'rep_sofy', name: 'Sofy Hernandez', role: 'rep', password: 'sofy47' },
+  { id: 'rep_daniel', name: 'Daniel Gil', role: 'rep', password: 'daniel29' },
+  { id: 'rep_linyirubi', name: 'Linyirubi Vazquez', role: 'rep', password: 'linyirubi83' },
+  { id: 'rep_tanya', name: 'Tanya Perez', role: 'rep', password: 'tanya16' },
+  { id: 'rep_maria', name: 'Maria Celeste Diaz', role: 'rep', password: 'maria55' },
+  { id: 'rep_francis', name: 'Francis Vásquez', role: 'rep', password: 'francis92' }
 ];
 
 const RAW_STORES = [
@@ -513,96 +513,98 @@ function InventoryForm({ store, products, profile, getCollectionRef, onBack }) {
 
   return (
     <div className="flex flex-col h-[calc(100vh-80px)] max-w-lg mx-auto bg-slate-100 relative">
-      <div className="bg-white pt-4 px-4 pb-0 rounded-b-3xl shadow-sm border-b border-slate-200 shrink-0 z-10 sticky top-0">
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest bg-indigo-50 px-2 py-1 rounded-md mb-1 block w-fit">En Tienda</span>
-            <h2 className="text-2xl font-black text-slate-900 leading-tight">{store.name}</h2>
-          </div>
-          <button onClick={onBack} className="text-slate-500 hover:bg-slate-100 p-2 rounded-full border border-slate-200">
-            <X size={20} />
-          </button>
-        </div>
-
-        {errorMsg && (
-          <div className="mb-4 bg-rose-50 text-rose-800 p-3 rounded-xl text-sm font-bold flex items-center gap-2 border border-rose-200">
-            <AlertCircle size={18} className="shrink-0 text-rose-500" /> <p>{errorMsg}</p>
-          </div>
-        )}
-
-        <div className="flex border-b border-slate-200">
-          <button onClick={() => setActiveTab('catalog')} className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'catalog' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
-            <ListPlus size={18}/> Catálogo
-          </button>
-          <button onClick={() => setActiveTab('cart')} className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'cart' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
-            <ClipboardList size={18}/> Lista <span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-md text-xs">{items.reduce((acc, i) => acc + i.qty, 0)}</span>
-          </button>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-4 custom-scrollbar pb-28">
-        {activeTab === 'catalog' ? (
-          <div className="space-y-4 animate-fade-in">
-            <div className="flex gap-2 sticky top-0 z-10 bg-slate-100 pb-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-4 top-3.5 text-slate-400" size={18} />
-                <input type="text" placeholder="Buscar producto..." className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-600 outline-none font-bold text-slate-800 shadow-sm" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-              </div>
-              <button onClick={() => setShowScanner(true)} className="bg-slate-900 text-white w-12 h-12 rounded-2xl flex items-center justify-center hover:bg-indigo-600 shadow-md shrink-0">
-                <Camera size={22} />
-              </button>
+      <div className="flex-1 overflow-y-auto custom-scrollbar pb-28">
+        <div className="bg-white pt-4 px-4 pb-0 rounded-b-3xl shadow-sm border-b border-slate-200 shrink-0 mb-4">
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest bg-indigo-50 px-2 py-1 rounded-md mb-1 block w-fit">En Tienda</span>
+              <h2 className="text-2xl font-black text-slate-900 leading-tight">{store.name}</h2>
             </div>
-            
-            {filteredProducts.length === 0 ? <p className="text-center font-bold text-slate-400 py-10">Sin resultados.</p> : (
-              <div className="space-y-3">
-                {filteredProducts.map(p => (
-                  <div key={p.id} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col gap-2">
-                    <div className="flex justify-between items-start gap-2 mb-1">
-                      <p className="font-black text-slate-800 text-sm leading-tight flex-1">{p.name}</p>
-                      <span className="text-[10px] text-slate-400 font-bold bg-slate-50 px-2 py-1 rounded-md border border-slate-100 whitespace-nowrap">Cod: {p.barcode || 'S/N'}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="relative flex-1">
-                        <DollarSign className="absolute left-2.5 top-2.5 text-emerald-500" size={16} />
-                        <input type="number" step="0.01" id={`price-${p.id}`} placeholder="Precio" className="w-full pl-8 pr-2 h-10 border border-slate-200 bg-slate-50 rounded-xl text-sm font-bold text-emerald-700 focus:ring-2 focus:ring-indigo-600 outline-none" />
-                      </div>
-                      <input type="number" id={`qty-${p.id}`} placeholder="Cant" min="1" className="w-20 h-10 border border-slate-200 bg-slate-50 rounded-xl text-center font-black text-slate-800 focus:ring-2 focus:ring-indigo-600 outline-none" />
-                      <button onClick={() => handleAddProduct(p, document.getElementById(`qty-${p.id}`).value, document.getElementById(`price-${p.id}`).value)} className="bg-indigo-100 text-indigo-700 w-10 h-10 rounded-xl hover:bg-indigo-600 hover:text-white flex items-center justify-center font-bold transition-colors shrink-0">
-                        <Plus size={20} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <button onClick={onBack} className="text-slate-500 hover:bg-slate-100 p-2 rounded-full border border-slate-200">
+              <X size={20} />
+            </button>
           </div>
-        ) : (
-          <div className="space-y-3 animate-fade-in">
-            {items.length === 0 ? (
-              <div className="text-center py-16 opacity-60">
-                <ClipboardList size={64} className="mx-auto mb-4 text-slate-400" />
-                <p className="font-bold text-slate-600 text-lg">Tu lista está vacía</p>
-                <p className="text-sm font-medium text-slate-500 mt-1">Ve al catálogo para agregar productos.</p>
-                <button onClick={() => setActiveTab('catalog')} className="mt-4 bg-white border border-slate-300 text-slate-700 px-6 py-2 rounded-full font-bold shadow-sm">Ir al Catálogo</button>
-              </div>
-            ) : (
-              items.map((item, idx) => (
-                <div key={idx} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
-                  <div className="flex-1 pr-4">
-                    <p className="font-black text-slate-800 text-sm leading-tight mb-2">{item.product.name}</p>
-                    <div className="flex flex-wrap items-center gap-2">
-                      {item.price > 0 && <span className="bg-emerald-50 text-emerald-700 font-bold text-xs px-2 py-1 rounded-lg border border-emerald-200">Precio: ${item.price}</span>}
-                      <span className="bg-slate-100 text-slate-800 font-bold text-xs px-2 py-1 rounded-lg border border-slate-200">Cant: <span className="font-black">{item.qty}</span></span>
-                    </div>
-                  </div>
-                  <button onClick={() => handleRemoveItem(item.product.id)} className="text-rose-500 bg-rose-50 p-2 hover:bg-rose-100 rounded-xl shrink-0">
-                    <Trash2 size={20} />
-                  </button>
+
+          {errorMsg && (
+            <div className="mb-4 bg-rose-50 text-rose-800 p-3 rounded-xl text-sm font-bold flex items-center gap-2 border border-rose-200">
+              <AlertCircle size={18} className="shrink-0 text-rose-500" /> <p>{errorMsg}</p>
+            </div>
+          )}
+
+          <div className="flex border-b border-slate-200">
+            <button onClick={() => setActiveTab('catalog')} className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'catalog' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+              <ListPlus size={18}/> Catálogo
+            </button>
+            <button onClick={() => setActiveTab('cart')} className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'cart' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+              <ClipboardList size={18}/> Lista <span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-md text-xs">{items.reduce((acc, i) => acc + i.qty, 0)}</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="px-4 pb-4">
+          {activeTab === 'catalog' ? (
+            <div className="space-y-4 animate-fade-in">
+              <div className="flex gap-2 mb-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-4 top-3.5 text-slate-400" size={18} />
+                  <input type="text" placeholder="Buscar producto..." className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-600 outline-none font-bold text-slate-800 shadow-sm" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                 </div>
-              ))
-            )}
-          </div>
-        )}
+                <button onClick={() => setShowScanner(true)} className="bg-slate-900 text-white w-12 h-12 rounded-2xl flex items-center justify-center hover:bg-indigo-600 shadow-md shrink-0">
+                  <Camera size={22} />
+                </button>
+              </div>
+              
+              {filteredProducts.length === 0 ? <p className="text-center font-bold text-slate-400 py-10">Sin resultados.</p> : (
+                <div className="space-y-3">
+                  {filteredProducts.map(p => (
+                    <div key={p.id} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col gap-2">
+                      <div className="flex justify-between items-start gap-2 mb-1">
+                        <p className="font-black text-slate-800 text-sm leading-tight flex-1">{p.name}</p>
+                        <span className="text-[10px] text-slate-400 font-bold bg-slate-50 px-2 py-1 rounded-md border border-slate-100 whitespace-nowrap">Cod: {p.barcode || 'S/N'}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="relative flex-1">
+                          <DollarSign className="absolute left-2.5 top-2.5 text-emerald-500" size={16} />
+                          <input type="number" step="0.01" id={`price-${p.id}`} placeholder="Precio" className="w-full pl-8 pr-2 h-10 border border-slate-200 bg-slate-50 rounded-xl text-sm font-bold text-emerald-700 focus:ring-2 focus:ring-indigo-600 outline-none" />
+                        </div>
+                        <input type="number" id={`qty-${p.id}`} placeholder="Cant" min="1" className="w-20 h-10 border border-slate-200 bg-slate-50 rounded-xl text-center font-black text-slate-800 focus:ring-2 focus:ring-indigo-600 outline-none" />
+                        <button onClick={() => handleAddProduct(p, document.getElementById(`qty-${p.id}`).value, document.getElementById(`price-${p.id}`).value)} className="bg-indigo-100 text-indigo-700 w-10 h-10 rounded-xl hover:bg-indigo-600 hover:text-white flex items-center justify-center font-bold transition-colors shrink-0">
+                          <Plus size={20} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-3 animate-fade-in">
+              {items.length === 0 ? (
+                <div className="text-center py-16 opacity-60">
+                  <ClipboardList size={64} className="mx-auto mb-4 text-slate-400" />
+                  <p className="font-bold text-slate-600 text-lg">Tu lista está vacía</p>
+                  <p className="text-sm font-medium text-slate-500 mt-1">Ve al catálogo para agregar productos.</p>
+                  <button onClick={() => setActiveTab('catalog')} className="mt-4 bg-white border border-slate-300 text-slate-700 px-6 py-2 rounded-full font-bold shadow-sm">Ir al Catálogo</button>
+                </div>
+              ) : (
+                items.map((item, idx) => (
+                  <div key={idx} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+                    <div className="flex-1 pr-4">
+                      <p className="font-black text-slate-800 text-sm leading-tight mb-2">{item.product.name}</p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {item.price > 0 && <span className="bg-emerald-50 text-emerald-700 font-bold text-xs px-2 py-1 rounded-lg border border-emerald-200">Precio: ${item.price}</span>}
+                        <span className="bg-slate-100 text-slate-800 font-bold text-xs px-2 py-1 rounded-lg border border-slate-200">Cant: <span className="font-black">{item.qty}</span></span>
+                      </div>
+                    </div>
+                    <button onClick={() => handleRemoveItem(item.product.id)} className="text-rose-500 bg-rose-50 p-2 hover:bg-rose-100 rounded-xl shrink-0">
+                      <Trash2 size={20} />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-200 md:max-w-lg md:mx-auto z-20">

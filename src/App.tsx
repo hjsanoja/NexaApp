@@ -6,17 +6,17 @@ import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, addDoc, u
 import { Camera, Search, Plus, Trash2, Download, LogOut, Users, Store, Package, LayoutDashboard, FileUp, X, Check, AlertCircle, ScanLine, Boxes, Lock, ChevronLeft, Eye, EyeOff, Filter, ChevronRight, ClipboardList, ListPlus, Edit3, History, DollarSign } from 'lucide-react';
 
 // --- VERSIÓN DE LA APP ---
-const APP_VERSION = "v1.7.0";
+const APP_VERSION = "v1.7.1";
 
 // --- INICIALIZACIÓN DE FIREBASE ---
 const myFirebaseConfig = {
-apiKey: "AIzaSyAHJuYAOVPAghEOQjlqO-ZdnGMi_sk9hmg",
-authDomain: "[nexaapp-4f2f4.firebaseapp.com](http://nexaapp-4f2f4.firebaseapp.com/)",
-projectId: "nexaapp-4f2f4",
-storageBucket: "nexaapp-4f2f4.firebasestorage.app",
-messagingSenderId: "780963789506",
-appId: "1:780963789506:web:54ea3e67921872470e995b",
-measurementId: "G-7J51XR0NDD"
+  apiKey: "AIzaSyAHJuYAOVPAghEOQjlqO-ZdnGMi_sk9hmg",
+  authDomain: "[nexaapp-4f2f4.firebaseapp.com](http://nexaapp-4f2f4.firebaseapp.com/)",
+  projectId: "nexaapp-4f2f4",
+  storageBucket: "nexaapp-4f2f4.firebasestorage.app",
+  messagingSenderId: "780963789506",
+  appId: "1:780963789506:web:54ea3e67921872470e995b",
+  measurementId: "G-7J51XR0NDD"
 };
 
 const isConfigMissing = myFirebaseConfig.apiKey === "TU_API_KEY" && typeof __firebase_config === 'undefined';
@@ -31,7 +31,7 @@ if (!isConfigMissing) {
 
 const appId = typeof __app_id !== 'undefined' && __app_id ? __app_id : 'default-app-id';
 
-// --- DATOS INICIALES REALES (Req 1, 2, 5) ---
+// --- DATOS INICIALES REALES ---
 const REAL_USERS = [
   { id: 'admin_1', name: 'Admin Principal', role: 'admin', password: 'admin26' },
   { id: 'rep_sofy', name: 'Sofy Hernandez', role: 'rep', password: 'sofy' },
@@ -108,11 +108,10 @@ function MainApp() {
     else localStorage.removeItem('nexastock_profile');
   };
 
-  // Función para forzar la carga de datos reales (Req 1, 2, 5)
+  // Función para forzar la carga de datos reales (Expuesta en Login)
   const forceSyncRealData = async () => {
     if(!confirm('Esto borrará los usuarios, tiendas y productos actuales y cargará la base de datos oficial. ¿Continuar?')) return;
     try {
-      // Eliminar datos viejos
       const delDocs = async (list, colName) => {
         for (let item of list) await deleteDoc(getDocRef(colName, item.id));
       };
@@ -120,7 +119,6 @@ function MainApp() {
       await delDocs(storesList, 'inv_stores');
       await delDocs(productsList, 'inv_products');
 
-      // Escribir datos nuevos
       const batchCreate = async (list, colName) => {
         for (let item of list) await setDoc(getDocRef(colName, item.id), item);
       };
@@ -128,7 +126,8 @@ function MainApp() {
       await batchCreate(REAL_STORES, 'inv_stores');
       await batchCreate(REAL_PRODUCTS, 'inv_products');
       
-      alert('¡Base de datos actualizada con éxito!');
+      alert('¡Base de datos actualizada con éxito! La página se recargará.');
+      window.location.reload();
     } catch (e) { alert('Error: ' + e.message); }
   };
 
@@ -153,7 +152,6 @@ function MainApp() {
     
     unsubs.push(onSnapshot(getCollectionRef('inv_users'), (snap) => {
       const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      // Carga de emergencia si la BD está vacía
       if (data.length === 0) REAL_USERS.forEach(u => setDoc(getDocRef('inv_users', u.id), u));
       setUsersList(data);
     }, (err) => setSystemError(`Error BD: ${err.message}`)));
@@ -176,7 +174,7 @@ function MainApp() {
     </div>
   );
 
-  if (!profile) return <LoginScreen usersList={usersList} onSelectProfile={handleSetProfile} systemError={systemError} />;
+  if (!profile) return <LoginScreen usersList={usersList} onSelectProfile={handleSetProfile} systemError={systemError} forceSyncRealData={forceSyncRealData} />;
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col font-sans text-slate-900 selection:bg-indigo-500 selection:text-white">
@@ -219,7 +217,7 @@ function MainApp() {
 }
 
 // --- PANTALLA DE INICIO DE SESIÓN ---
-function LoginScreen({ usersList, onSelectProfile, systemError }) {
+function LoginScreen({ usersList, onSelectProfile, systemError, forceSyncRealData }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
   const [password, setPassword] = useState('');
@@ -322,22 +320,29 @@ function LoginScreen({ usersList, onSelectProfile, systemError }) {
             </div>
           )}
         </div>
-        <p className="text-center text-slate-400 mt-6 text-xs font-bold tracking-widest">VERSIÓN {APP_VERSION}</p>
+        
+        {/* BOTÓN DE EMERGENCIA AÑADIDO AQUÍ */}
+        <div className="text-center mt-6 flex flex-col items-center gap-3">
+          <p className="text-slate-400 text-xs font-bold tracking-widest">VERSIÓN {APP_VERSION}</p>
+          <button onClick={forceSyncRealData} className="text-[11px] text-rose-600 font-black border-2 border-rose-200 bg-rose-50 px-4 py-2 rounded-xl hover:bg-rose-600 hover:text-white transition-colors shadow-sm flex items-center gap-2">
+            <AlertCircle size={14} /> Forzar Actualización de BD
+          </button>
+        </div>
+
       </div>
     </div>
   );
 }
 
-// --- VISTA DEL VENDEDOR (SELECCIÓN DE RUTA E HISTORIAL - Req 6) ---
+// --- VISTA DEL VENDEDOR (SELECCIÓN DE RUTA E HISTORIAL) ---
 function RepApp({ profile, stores, products, submissions, getCollectionRef }) {
   const [selectedStore, setSelectedStore] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState('stores'); // 'stores' o 'history'
+  const [activeTab, setActiveTab] = useState('stores'); 
 
   const myStores = stores.filter(s => s.assignedTo === profile.name);
   const filteredStores = myStores.filter(s => s.name.toLowerCase().includes(searchTerm.toLowerCase()));
   
-  // Filtrar solo las entregas de este vendedor
   const mySubmissions = submissions.filter(s => s.repId === profile.id || s.repName === profile.name);
 
   if (selectedStore) return <InventoryForm store={selectedStore} products={products} profile={profile} getCollectionRef={getCollectionRef} onBack={() => setSelectedStore(null)} />;
@@ -386,7 +391,6 @@ function RepApp({ profile, stores, products, submissions, getCollectionRef }) {
             </div>
           </>
         ) : (
-          /* HISTORIAL DEL VENDEDOR (Req 6) */
           <>
             <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
               <h2 className="text-2xl font-black text-slate-900 mb-2">Mi Historial</h2>
@@ -439,7 +443,7 @@ function RepApp({ profile, stores, products, submissions, getCollectionRef }) {
   );
 }
 
-// --- FORMULARIO DE INVENTARIO CON PRECIO (Req 3) ---
+// --- FORMULARIO DE INVENTARIO CON PRECIO ---
 function InventoryForm({ store, products, profile, getCollectionRef, onBack }) {
   const [items, setItems] = useState([]); 
   const [searchTerm, setSearchTerm] = useState('');
@@ -455,7 +459,6 @@ function InventoryForm({ store, products, profile, getCollectionRef, onBack }) {
 
   const filteredProducts = products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()) || (p.barcode && p.barcode.includes(searchTerm)));
 
-  // Lógica de validación cruzada para Precio e Inventario (Req 3)
   const handleAddProduct = (product, qtyStr, priceStr) => {
     setErrorMsg('');
     const qty = parseInt(qtyStr, 10);
@@ -465,7 +468,6 @@ function InventoryForm({ store, products, profile, getCollectionRef, onBack }) {
     const hasPrice = !isNaN(price) && price > 0;
 
     if (!hasQty && !hasPrice) return setErrorMsg(`Debe ingresar Cantidad o Precio para ${product.name}`);
-    // Si carga precio, debe cargar inventario obligatorio
     if (hasPrice && !hasQty) return setErrorMsg(`Para reportar precio de ${product.name}, DEBE indicar la cantidad en inventario.`);
 
     if (items.some(i => i.product.id === product.id)) return setErrorMsg(`${product.name} ya está en la lista.`);
@@ -491,7 +493,6 @@ function InventoryForm({ store, products, profile, getCollectionRef, onBack }) {
     } catch (err) { setErrorMsg("Error de red al guardar."); setIsSubmitting(false); }
   };
 
-  // Escáner continuo (solo suma cantidad, no precio)
   const onScanContinuous = (decodedText) => {
     const found = products.find(p => p.barcode === decodedText);
     if (found) {
@@ -560,7 +561,6 @@ function InventoryForm({ store, products, profile, getCollectionRef, onBack }) {
                       <p className="font-black text-slate-800 text-sm leading-tight flex-1">{p.name}</p>
                       <span className="text-[10px] text-slate-400 font-bold bg-slate-50 px-2 py-1 rounded-md border border-slate-100 whitespace-nowrap">Cod: {p.barcode || 'S/N'}</span>
                     </div>
-                    {/* Campos de Precio y Cantidad */}
                     <div className="flex items-center gap-2">
                       <div className="relative flex-1">
                         <DollarSign className="absolute left-2.5 top-2.5 text-emerald-500" size={16} />
@@ -708,7 +708,7 @@ function TabButton({ icon, label, active, onClick }) {
   );
 }
 
-// --- VISTA INVENTARIO ADMINISTRADOR (CON EDICIÓN - Req 7) ---
+// --- VISTA INVENTARIO ADMINISTRADOR ---
 function AdminLiveView({ submissions, getDocRef }) {
   const [filterStore, setFilterStore] = useState('');
   const [filterRep, setFilterRep] = useState('');
@@ -716,7 +716,6 @@ function AdminLiveView({ submissions, getDocRef }) {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState(null); 
 
-  // Agrupar visualmente, pero manteniendo referencia a las sub-entregas reales (Req 7)
   const groupedData = useMemo(() => {
     const groups = {};
     submissions.forEach(sub => {
@@ -728,7 +727,7 @@ function AdminLiveView({ submissions, getDocRef }) {
       }
       groups[key].reps.add(sub.repName);
       if (sub.timestamp > groups[key].timestamp) groups[key].timestamp = sub.timestamp; 
-      groups[key].rawSubmissions.push(sub); // Guardar reporte original para edición
+      groups[key].rawSubmissions.push(sub); 
 
       sub.items.forEach(item => {
         if (!groups[key].itemsMap[item.productId]) groups[key].itemsMap[item.productId] = { ...item };
@@ -742,7 +741,6 @@ function AdminLiveView({ submissions, getDocRef }) {
   }, [submissions]);
 
   const uniqueStores = [...new Set(groupedData.map(s => s.storeName))].filter(Boolean);
-  const uniqueDates = [...new Set(groupedData.map(s => s.dateStr))].filter(Boolean);
 
   const filteredData = groupedData.filter(g => {
     const matchStore = filterStore ? g.storeName === filterStore : true;
@@ -753,7 +751,6 @@ function AdminLiveView({ submissions, getDocRef }) {
 
   const activeFiltersCount = (filterStore ? 1 : 0) + (filterRep ? 1 : 0) + (filterDate ? 1 : 0);
 
-  // Exportar todas las columnas incluyendo Precio (Req 4)
   const downloadCSV = () => {
     let csv = "Fecha,Hora,Vendedor,Farmacia,Producto,Cantidad,Precio\n";
     submissions.forEach(sub => {
@@ -773,7 +770,6 @@ function AdminLiveView({ submissions, getDocRef }) {
 
   const handleSelectGroup = (group) => { setSelectedGroup(group); window.scrollTo({ top: 0, behavior: 'smooth' }); };
 
-  // Funciones de Edición/Borrado (Req 7)
   const handleDeleteItem = async (subId, productId) => {
     if(!confirm('¿Eliminar este producto del reporte?')) return;
     try {
@@ -781,8 +777,6 @@ function AdminLiveView({ submissions, getDocRef }) {
       const newItems = sub.items.filter(i => i.productId !== productId);
       if(newItems.length === 0) await deleteDoc(getDocRef('inv_submissions', subId));
       else await updateDoc(getDocRef('inv_submissions', subId), { items: newItems });
-      
-      // Actualizar vista actual si se quedó vacía
       if(newItems.length === 0) setSelectedGroup(null);
     } catch(e) { alert("Error al eliminar"); }
   };
@@ -805,7 +799,6 @@ function AdminLiveView({ submissions, getDocRef }) {
   };
 
   if (selectedGroup) {
-    // Buscar la data fresca de los reportes originales para esta vista
     const freshGroupSubs = submissions.filter(s => selectedGroup.rawSubmissions.some(rs => rs.id === s.id));
     if (freshGroupSubs.length === 0) { setSelectedGroup(null); return null; }
 
@@ -934,7 +927,7 @@ function AdminLiveView({ submissions, getDocRef }) {
   );
 }
 
-// --- GESTOR DE CATÁLOGOS CON FILTROS COMPACTOS Y FORMULARIO OCULTABLE EN MÓVIL ---
+// --- GESTOR DE CATÁLOGOS ---
 function CatalogManager({ title, col, data, fields, getRef, getDoc }) {
   const [formData, setFormData] = useState({});
   const [editingId, setEditingId] = useState(null);

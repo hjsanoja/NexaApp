@@ -6,17 +6,17 @@ import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, addDoc, u
 import { Camera, Search, Plus, Trash2, Download, LogOut, Users, Store, Package, LayoutDashboard, FileUp, X, Check, AlertCircle, ScanLine, Boxes, Lock, ChevronLeft, Eye, EyeOff, Filter, ChevronRight, ClipboardList, ListPlus, Edit3, History, DollarSign } from 'lucide-react';
 
 // --- VERSIÓN DE LA APP ---
-const APP_VERSION = "v1.7.3 - Dev Hernando Sanoja";
+const APP_VERSION = "v1.7.4";
 
 // --- INICIALIZACIÓN DE FIREBASE ---
 const myFirebaseConfig = {
   apiKey: "AIzaSyAHJuYAOVPAghEOQjlqO-ZdnGMi_sk9hmg",
-  authDomain: "nexaapp-4f2f4.firebaseapp.com",
-  projectId: "nexaapp-4f2f4",
-  storageBucket: "nexaapp-4f2f4.firebasestorage.app",
-  messagingSenderId: "780963789506",
-  appId: "1:780963789506:web:54ea3e67921872470e995b",
-  measurementId: "G-7J51XR0NDD"
+authDomain: "[nexaapp-4f2f4.firebaseapp.com](http://nexaapp-4f2f4.firebaseapp.com/)",
+projectId: "nexaapp-4f2f4",
+storageBucket: "nexaapp-4f2f4.firebasestorage.app",
+messagingSenderId: "780963789506",
+appId: "1:780963789506:web:54ea3e67921872470e995b",
+measurementId: "G-7J51XR0NDD"
 };
 
 const isConfigMissing = myFirebaseConfig.apiKey === "TU_API_KEY" && typeof __firebase_config === 'undefined';
@@ -448,6 +448,7 @@ function InventoryForm({ store, products, profile, getCollectionRef, onBack }) {
   const [scanToast, setScanToast] = useState(null); 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('catalog'); 
+  const [drafts, setDrafts] = useState({}); // NUEVO: Estado para carga masiva
   const toastTimer = useRef(null);
   const itemsRef = useRef(items);
 
@@ -455,22 +456,68 @@ function InventoryForm({ store, products, profile, getCollectionRef, onBack }) {
 
   const filteredProducts = products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()) || (p.barcode && p.barcode.includes(searchTerm)));
 
-  const handleAddProduct = (product, qtyStr, priceStr) => {
+  // Manejar lo que el vendedor escribe en el catálogo
+  const handleDraftChange = (productId, field, value) => {
+    setDrafts(prev => ({
+      ...prev,
+      [productId]: {
+        ...prev[productId],
+        [field]: value
+      }
+    }));
+  };
+
+  // Función de Carga Masiva hacia la Lista
+  const handleBulkAdd = () => {
     setErrorMsg('');
-    const qty = parseInt(qtyStr, 10);
-    const price = parseFloat(priceStr);
-    
-    const hasQty = !isNaN(qty) && qty > 0;
-    const hasPrice = !isNaN(price) && price > 0;
+    let newItems = [...items];
+    let errors = [];
+    let addedCount = 0;
+    let remainingDrafts = { ...drafts };
 
-    if (!hasQty && !hasPrice) return setErrorMsg(`Debe ingresar Cantidad o Precio para ${product.name}`);
-    if (hasPrice && !hasQty) return setErrorMsg(`Para reportar precio de ${product.name}, DEBE indicar la cantidad en inventario.`);
+    Object.keys(drafts).forEach(productId => {
+      const draft = drafts[productId];
+      if (!draft.qty && !draft.price) {
+        delete remainingDrafts[productId]; // Limpiar si lo dejó en blanco
+        return; 
+      }
 
-    if (items.some(i => i.product.id === product.id)) return setErrorMsg(`${product.name} ya está en la lista.`);
+      const qty = parseInt(draft.qty, 10);
+      const price = parseFloat(draft.price);
+      
+      const hasQty = !isNaN(qty) && qty > 0;
+      const hasPrice = !isNaN(price) && price > 0;
+      const product = products.find(p => p.id === productId);
+
+      if (!hasQty && !hasPrice) return; 
+
+      if (hasPrice && !hasQty) {
+        errors.push(`Falta cantidad para ${product.name}`);
+        return; // Mantiene el borrador para que lo corrija
+      }
+
+      if (newItems.some(i => i.product.id === productId)) {
+        errors.push(`${product.name} ya está en la lista`);
+        return; 
+      }
+
+      newItems.unshift({ product, qty: hasQty ? qty : 0, price: hasPrice ? price : null });
+      delete remainingDrafts[productId]; // Lo saca del borrador porque se añadió con éxito
+      addedCount++;
+    });
+
+    if (errors.length > 0) setErrorMsg(errors.join(' | '));
     
-    setItems([{ product, qty: hasQty ? qty : 0, price: hasPrice ? price : null }, ...items]);
-    setSearchTerm(''); 
-    setActiveTab('cart'); 
+    if (addedCount > 0) {
+      setItems(newItems);
+      setDrafts(remainingDrafts);
+      if (errors.length === 0) {
+        setSearchTerm('');
+        setActiveTab('cart');
+      }
+    } else {
+      setDrafts(remainingDrafts); 
+    }
   };
 
   const handleRemoveItem = (productId) => setItems(items.filter(i => i.product.id !== productId));
@@ -489,6 +536,7 @@ function InventoryForm({ store, products, profile, getCollectionRef, onBack }) {
     } catch (err) { setErrorMsg("Error de red al guardar."); setIsSubmitting(false); }
   };
 
+  // Escáner continuo (envía directo a la lista para más velocidad)
   const onScanContinuous = (decodedText) => {
     const found = products.find(p => p.barcode === decodedText);
     if (found) {
@@ -552,24 +600,32 @@ function InventoryForm({ store, products, profile, getCollectionRef, onBack }) {
               
               {filteredProducts.length === 0 ? <p className="text-center font-bold text-slate-400 py-10">Sin resultados.</p> : (
                 <div className="space-y-3">
-                  {filteredProducts.map(p => (
-                    <div key={p.id} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col gap-2">
-                      <div className="flex justify-between items-start gap-2 mb-1">
-                        <p className="font-black text-slate-800 text-sm leading-tight flex-1">{p.name}</p>
-                        <span className="text-[10px] text-slate-400 font-bold bg-slate-50 px-2 py-1 rounded-md border border-slate-100 whitespace-nowrap">Cod: {p.barcode || 'S/N'}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="relative flex-1">
-                          <DollarSign className="absolute left-2.5 top-2.5 text-emerald-500" size={16} />
-                          <input type="number" step="0.01" id={`price-${p.id}`} placeholder="Precio" className="w-full pl-8 pr-2 h-10 border border-slate-200 bg-slate-50 rounded-xl text-sm font-bold text-emerald-700 focus:ring-2 focus:ring-indigo-600 outline-none" />
+                  {filteredProducts.map(p => {
+                    const isDrafted = drafts[p.id]?.qty || drafts[p.id]?.price;
+                    return (
+                      <div key={p.id} className={`bg-white p-4 rounded-2xl shadow-sm border transition-colors flex flex-col gap-2 ${isDrafted ? 'border-indigo-400 bg-indigo-50/30' : 'border-slate-200'}`}>
+                        <div className="flex justify-between items-start gap-2 mb-1">
+                          <p className="font-black text-slate-800 text-sm leading-tight flex-1">{p.name}</p>
+                          <span className="text-[10px] text-slate-400 font-bold bg-slate-50 px-2 py-1 rounded-md border border-slate-100 whitespace-nowrap">Cod: {p.barcode || 'S/N'}</span>
                         </div>
-                        <input type="number" id={`qty-${p.id}`} placeholder="Cant" min="1" className="w-20 h-10 border border-slate-200 bg-slate-50 rounded-xl text-center font-black text-slate-800 focus:ring-2 focus:ring-indigo-600 outline-none" />
-                        <button onClick={() => handleAddProduct(p, document.getElementById(`qty-${p.id}`).value, document.getElementById(`price-${p.id}`).value)} className="bg-indigo-100 text-indigo-700 w-10 h-10 rounded-xl hover:bg-indigo-600 hover:text-white flex items-center justify-center font-bold transition-colors shrink-0">
-                          <Plus size={20} />
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <div className="relative flex-1">
+                            <DollarSign className="absolute left-2.5 top-2.5 text-emerald-500" size={16} />
+                            <input 
+                              type="number" step="0.01" placeholder="Precio"
+                              value={drafts[p.id]?.price || ''} onChange={e => handleDraftChange(p.id, 'price', e.target.value)} 
+                              className="w-full pl-8 pr-2 h-10 border border-slate-200 bg-slate-50 rounded-xl text-sm font-bold text-emerald-700 focus:ring-2 focus:ring-indigo-600 outline-none" 
+                            />
+                          </div>
+                          <input 
+                            type="number" placeholder="Cant" min="1" 
+                            value={drafts[p.id]?.qty || ''} onChange={e => handleDraftChange(p.id, 'qty', e.target.value)} 
+                            className="w-24 h-10 border border-slate-200 bg-slate-50 rounded-xl text-center font-black text-slate-800 focus:ring-2 focus:ring-indigo-600 outline-none" 
+                          />
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -604,13 +660,26 @@ function InventoryForm({ store, products, profile, getCollectionRef, onBack }) {
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-200 md:max-w-lg md:mx-auto z-20">
-        <button 
-          onClick={handleSubmit} disabled={items.length === 0 || isSubmitting}
-          className={`w-full py-4 rounded-2xl font-black text-lg flex items-center justify-center gap-2 transition-all shadow-lg
-            ${items.length === 0 || isSubmitting ? 'bg-slate-200 text-slate-400 shadow-none' : 'bg-emerald-600 text-white hover:bg-emerald-500'}`}
-        >
-          {isSubmitting ? 'Enviando...' : <><Check size={24} strokeWidth={3} /> Enviar Reporte</>}
-        </button>
+        {activeTab === 'catalog' ? (() => {
+          const draftCount = Object.values(drafts).filter(d => d.qty || d.price).length;
+          return (
+            <button 
+              onClick={handleBulkAdd} disabled={draftCount === 0}
+              className={`w-full py-4 rounded-2xl font-black text-lg flex items-center justify-center gap-2 transition-all shadow-lg
+                ${draftCount === 0 ? 'bg-slate-200 text-slate-400 shadow-none' : 'bg-indigo-600 text-white hover:bg-indigo-500'}`}
+            >
+              <ListPlus size={24} strokeWidth={3} /> Añadir {draftCount > 0 ? draftCount : ''} a la Lista
+            </button>
+          );
+        })() : (
+          <button 
+            onClick={handleSubmit} disabled={items.length === 0 || isSubmitting}
+            className={`w-full py-4 rounded-2xl font-black text-lg flex items-center justify-center gap-2 transition-all shadow-lg
+              ${items.length === 0 || isSubmitting ? 'bg-slate-200 text-slate-400 shadow-none' : 'bg-emerald-600 text-white hover:bg-emerald-500'}`}
+          >
+            {isSubmitting ? 'Enviando...' : <><Check size={24} strokeWidth={3} /> Enviar Reporte</>}
+          </button>
+        )}
       </div>
 
       {showScanner && <BarcodeScannerModal onClose={() => setShowScanner(false)} onScan={onScanContinuous} scanToast={scanToast} />}

@@ -6,7 +6,7 @@ import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, addDoc, u
 import { Camera, Search, Plus, Trash2, Download, LogOut, Users, Store, Package, LayoutDashboard, FileUp, X, Check, AlertCircle, ScanLine, Boxes, Lock, ChevronLeft, Eye, EyeOff, Filter, ChevronRight, ClipboardList, ListPlus, Edit3, History, DollarSign } from 'lucide-react';
 
 // --- VERSIÓN DE LA APP ---
-const APP_VERSION = "v1.7.4";
+const APP_VERSION = "v1.7.4 - Dev Hernando Sanoja";
 
 // --- INICIALIZACIÓN DE FIREBASE ---
 const myFirebaseConfig = {

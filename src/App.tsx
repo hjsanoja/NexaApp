@@ -10,13 +10,13 @@ const APP_VERSION = "v1.7.5 dev Hernando Sanoja";
 
 // --- INICIALIZACIÓN DE FIREBASE ---
 const myFirebaseConfig = {
-  apiKey: "AIzaSyAHJuYAOVPAghEOQjlqO-ZdnGMi_sk9hmg",
-  authDomain: "[nexaapp-4f2f4.firebaseapp.com](http://nexaapp-4f2f4.firebaseapp.com/)",
-  projectId: "nexaapp-4f2f4",
-  storageBucket: "nexaapp-4f2f4.firebasestorage.app",
-  messagingSenderId: "780963789506",
-  appId: "1:780963789506:web:54ea3e67921872470e995b",
-  measurementId: "G-7J51XR0NDD"
+  apiKey: "AIzaSyA7wqpmc38SxENQe0LEWEpHscajfJrDVHo",
+  authDomain: "nexaapp-bb7c9.firebaseapp.com",
+  projectId: "nexaapp-bb7c9",
+  storageBucket: "nexaapp-bb7c9.firebasestorage.app",
+  messagingSenderId: "437850578991",
+  appId: "1:437850578991:web:cf2aa7ac37b8c08095e6da",
+  measurementId: "G-7B2Q9QQ5E4"
 };
 
 const isConfigMissing = myFirebaseConfig.apiKey === "TU_API_KEY" && typeof __firebase_config === 'undefined';
